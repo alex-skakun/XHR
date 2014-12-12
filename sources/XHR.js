@@ -2,7 +2,6 @@
 
     'use strict';
 
-
     function setHeaders (xhr, headers) {
         var resultHeaders = {},
             defaultHeadersKeys = Object.keys(XHR.defaultHeaders),
