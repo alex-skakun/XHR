@@ -2,84 +2,32 @@
 
     'use strict';
 
-    function XHRActions (xhr) {
-        function assignCallback (name, fn) {
-            if (typeof fn === 'function') {
-                callbacks[name] = fn;
-            }
-        }
-
-        var callbacks = {
-                error: function () {},
-                success: function () {},
-                loadStart: function () {},
-                progress: function () {},
-                loadEnd: function () {},
-                abort: function () {},
-                load: function () {}
-            },
-            actions = {
-                error: function error (callback) {
-                    assignCallback('error', callback);
-                    return actions;
-                },
-                success: function success (callback) {
-                    assignCallback('success', callback);
-                    return actions;
-                },
-                loadStart: function loadStart (callback) {
-                    assignCallback('loadStart', callback);
-                    return actions;
-                },
-                progress: function progress (callback) {
-                    assignCallback('progress', callback);
-                    return actions;
-                },
-                loadEnd: function loadEnd (callback) {
-                    assignCallback('loadEnd', callback);
-                    return actions;
-                },
-                abort: function abort (callback) {
-                    assignCallback('abort', callback);
-                    return actions;
-                },
-                load: function load (callback) {
-                    assignCallback('load', callback);
-                    return actions;
-                },
-                getXHR: function getXHR () {
-                    return xhr;
-                }
-            };
-        return {
-            callbacks: callbacks,
-            actions: actions
-        };
-    }
 
     function setHeaders (xhr, headers) {
-        var resultHeaders = {};
-        for (var header in XHR.defaultHeaders) {
-            if (XHR.defaultHeaders.hasOwnProperty(header)) {
-                resultHeaders[header] = XHR.defaultHeaders[header];
-            }
+        var resultHeaders = {},
+            defaultHeadersKeys = Object.keys(XHR.defaultHeaders),
+            userHeadersKeys,
+            resultHeadersKeys,
+            header,
+            value,
+            i, l;
+        for (i = 0, l = defaultHeadersKeys.length; i < l; i++) {
+            header = defaultHeadersKeys[i].toLowerCase();
+            resultHeaders[header] = XHR.defaultHeaders[header];
         }
         if (typeof headers === 'object') {
-            for (var customHeader in headers) {
-                if (headers.hasOwnProperty(customHeader)) {
-                    if (resultHeaders[customHeader] !== undefined) {
-                        delete resultHeaders[customHeader];
-                    }
-                    resultHeaders[customHeader] = headers[customHeader];
-                }
+            userHeadersKeys = Object.keys(headers);
+            for (i = 0, l = userHeadersKeys.length; i < l; i++) {
+                header = userHeadersKeys[i].toLowerCase();
+                resultHeaders[header] = headers[header];
             }
         }
-        for (var resultHeader in resultHeaders) {
-            if (resultHeaders.hasOwnProperty(resultHeader)) {
-                var headerValue = resultHeaders[resultHeader];
-                if (headerValue) {
-                    xhr.setRequestHeader(resultHeader, String(headerValue));
-                }
+        resultHeadersKeys = Object.keys(resultHeaders);
+        for (i = 0, l = resultHeadersKeys.length; i < l; i++) {
+            header = resultHeadersKeys[i];
+            value = resultHeaders[header];
+            if (!isNaN(value) && typeof value !== 'undefined' && value !== null) {
+                xhr.setRequestHeader(header, String(value));
             }
         }
     }
@@ -88,13 +36,13 @@
     function XHR (config) {
         if (config && typeof config.method === 'string' && typeof config.url === 'string') {
             var xhr = new XMLHttpRequest(),
-                result = new XHRActions(xhr),
+                result = new XHR.XHRPromise(xhr),
                 queryParams = '',
                 async = true,
                 dataForSend = null;
 
             if (typeof config.attributes === 'object') {
-                var attributes = Object.keys(config.attributes) || [];
+                var attributes = Object.keys(config.attributes);
                 attributes.forEach(function (attribute) {
                     xhr[attribute] = config.attributes[attribute];
                 });
