@@ -1,7 +1,14 @@
 {
   "name": "XHR",
-  "main": "xhr.min.js",
   "version": "1.0.0",
+  "main": [
+    "xhr.js",
+    "xhr.min.js"
+  ],
+  "ignore": [
+    "node_modules",
+    "Gruntfile.js"
+  ],
   "homepage": "https://github.com/alex-skakun/XHR",
   "repository": {
     "type": "git",
