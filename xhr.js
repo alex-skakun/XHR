@@ -120,7 +120,7 @@
                 var response = xhr.response;
                 if (xhr.responseType !== 'json') {
                     try {
-                        response = JSON.stringify(xhr.responseText);
+                        response = JSON.parse(xhr.responseText);
                     } catch (e) {
                         response = xhr.responseText;
                     }
