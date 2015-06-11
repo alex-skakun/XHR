@@ -156,7 +156,7 @@
     global.XHR = XHR;
 
     if (typeof define === 'function' && define.amd !== null) {
-        define([], function () {
+        define('XHR', [], function () {
             return XHR;
         });
     }
