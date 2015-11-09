@@ -4,6 +4,7 @@
 
     function XHRPromise (xhr) {
         var _this = this;
+        this.silent = false;
         this.callbacks = {
             error: null,
             loadStart: null,
@@ -14,6 +15,10 @@
             success: null
         };
         this.actions = {
+            silent: function silent () {
+                _this.silent = true;
+                return _this.actions;
+            },
             error: function error (callback) {
                 _this.callbacks.error = callback;
                 return _this.actions;
