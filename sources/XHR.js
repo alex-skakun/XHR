@@ -153,6 +153,15 @@
         writable: false
     });
 
+    Object.defineProperty(XHR, 'interceptors', {
+        value: {
+            response: null,
+            responseError: null
+        },
+        configurable: true,
+        writable: true
+    });
+
     global.XHR = XHR;
 
     if (typeof define === 'function' && define.amd !== null) {
