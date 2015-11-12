@@ -11,21 +11,21 @@
             value,
             i, l;
         for (i = 0, l = defaultHeadersKeys.length; i < l; i++) {
-            header = defaultHeadersKeys[i].toLowerCase();
-            resultHeaders[header] = XHR.defaultHeaders[header];
+            header = defaultHeadersKeys[i];
+            resultHeaders[header.toLowerCase()] = XHR.defaults.headers[header];
         }
         if (typeof headers === 'object') {
             userHeadersKeys = Object.keys(headers);
             for (i = 0, l = userHeadersKeys.length; i < l; i++) {
-                header = userHeadersKeys[i].toLowerCase();
-                resultHeaders[header] = headers[header];
+                header = userHeadersKeys[i];
+                resultHeaders[header.toLowerCase()] = headers[header];
             }
         }
         resultHeadersKeys = Object.keys(resultHeaders);
         for (i = 0, l = resultHeadersKeys.length; i < l; i++) {
             header = resultHeadersKeys[i];
             value = resultHeaders[header];
-            if (!isNaN(value) && typeof value !== 'undefined' && value !== null) {
+            if (typeof value !== 'undefined' && value !== null) {
                 xhr.setRequestHeader(header, String(value));
             }
         }
@@ -126,9 +126,9 @@
                     }
                 }
                 if (xhr.status >= 200 && xhr.status < 400) {
-                    result.applyCallback('success', response);
+                    result.applyCallback('success', response, xhr);
                 } else if (xhr.status >= 400 && xhr.status < 600) {
-                    result.applyCallback('error', e);
+                    result.applyCallback('error', response, xhr);
                 }
             }, false);
 

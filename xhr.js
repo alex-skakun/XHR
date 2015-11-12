@@ -11,21 +11,21 @@
             value,
             i, l;
         for (i = 0, l = defaultHeadersKeys.length; i < l; i++) {
-            header = defaultHeadersKeys[i].toLowerCase();
-            resultHeaders[header] = XHR.defaultHeaders[header];
+            header = defaultHeadersKeys[i];
+            resultHeaders[header.toLowerCase()] = XHR.defaults.headers[header];
         }
         if (typeof headers === 'object') {
             userHeadersKeys = Object.keys(headers);
             for (i = 0, l = userHeadersKeys.length; i < l; i++) {
-                header = userHeadersKeys[i].toLowerCase();
-                resultHeaders[header] = headers[header];
+                header = userHeadersKeys[i];
+                resultHeaders[header.toLowerCase()] = headers[header];
             }
         }
         resultHeadersKeys = Object.keys(resultHeaders);
         for (i = 0, l = resultHeadersKeys.length; i < l; i++) {
             header = resultHeadersKeys[i];
             value = resultHeaders[header];
-            if (!isNaN(value) && typeof value !== 'undefined' && value !== null) {
+            if (typeof value !== 'undefined' && value !== null) {
                 xhr.setRequestHeader(header, String(value));
             }
         }
@@ -126,9 +126,9 @@
                     }
                 }
                 if (xhr.status >= 200 && xhr.status < 400) {
-                    result.applyCallback('success', response);
+                    result.applyCallback('success', response, xhr);
                 } else if (xhr.status >= 400 && xhr.status < 600) {
-                    result.applyCallback('error', e);
+                    result.applyCallback('error', response, xhr);
                 }
             }, false);
 
@@ -153,6 +153,15 @@
         writable: false
     });
 
+    Object.defineProperty(XHR, 'interceptors', {
+        value: {
+            response: null,
+            responseError: null
+        },
+        configurable: true,
+        writable: true
+    });
+
     global.XHR = XHR;
 
     if (typeof define === 'function' && define.amd !== null) {
@@ -167,9 +176,15 @@
 
     'use strict';
 
+    var interceptorTypes = {
+        success: 'response',
+        error: 'responseError'
+    };
+
     function XHRPromise (xhr) {
         var _this = this;
         this.silent = false;
+        this.interceptors = {};
         this.callbacks = {
             error: null,
             loadStart: null,
@@ -180,6 +195,10 @@
             success: null
         };
         this.actions = {
+            interceptors: function interceptors (data) {
+                _this.interceptors = data;
+                return _this.actions;
+            },
             silent: function silent () {
                 _this.silent = true;
                 return _this.actions;
@@ -213,16 +232,43 @@
                 return _this.actions;
             },
             getXHR: function getXHR () {
-                return xhr;
+                if (xhr instanceof XMLHttpRequest) {
+                    return xhr;
+                } else {
+                    return {
+                        abort: function () {
+                            clearTimeout(xhr);
+                            _this.applyCallback('abort');
+                        }
+                    };
+                }
             }
         };
 
     }
 
-    XHRPromise.prototype.applyCallback = function applyCallback (callbackName, data) {
+    XHRPromise.prototype.applyCallback = function applyCallback (callbackName, data, xhr) {
         var callback = this.callbacks[callbackName];
-        if (typeof callback === 'function') {
-            callback(data);
+        if (this.checkInterceptor(interceptorTypes[callbackName], xhr)) {
+            if (typeof callback === 'function') {
+                callback.call(null, this.applyOwnInterceptor(interceptorTypes[callbackName], data), xhr);
+            }
+        }
+    };
+
+    XHRPromise.prototype.checkInterceptor = function checkInterceptor (interceptorName, xhr) {
+        if (interceptorName && typeof XHR.interceptors[interceptorName] === 'function') {
+            return XHR.interceptors[interceptorName](xhr) || this.silent;
+        }
+        return true;
+    };
+
+    XHRPromise.prototype.applyOwnInterceptor = function applyOwnInterceptor (interceptorName, data) {
+        var interceptor = this.interceptors[interceptorName];
+        if (typeof interceptor === 'function') {
+            return interceptor(data);
+        } else {
+            return data;
         }
     };
 

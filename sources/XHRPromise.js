@@ -2,9 +2,15 @@
 
     'use strict';
 
+    var interceptorTypes = {
+        success: 'response',
+        error: 'responseError'
+    };
+
     function XHRPromise (xhr) {
         var _this = this;
         this.silent = false;
+        this.interceptors = {};
         this.callbacks = {
             error: null,
             loadStart: null,
@@ -15,6 +21,10 @@
             success: null
         };
         this.actions = {
+            interceptors: function interceptors (data) {
+                _this.interceptors = data;
+                return _this.actions;
+            },
             silent: function silent () {
                 _this.silent = true;
                 return _this.actions;
@@ -48,16 +58,43 @@
                 return _this.actions;
             },
             getXHR: function getXHR () {
-                return xhr;
+                if (xhr instanceof XMLHttpRequest) {
+                    return xhr;
+                } else {
+                    return {
+                        abort: function () {
+                            clearTimeout(xhr);
+                            _this.applyCallback('abort');
+                        }
+                    };
+                }
             }
         };
 
     }
 
-    XHRPromise.prototype.applyCallback = function applyCallback (callbackName, data) {
+    XHRPromise.prototype.applyCallback = function applyCallback (callbackName, data, xhr) {
         var callback = this.callbacks[callbackName];
-        if (typeof callback === 'function') {
-            callback(data);
+        if (this.checkInterceptor(interceptorTypes[callbackName], xhr)) {
+            if (typeof callback === 'function') {
+                callback.call(null, this.applyOwnInterceptor(interceptorTypes[callbackName], data), xhr);
+            }
+        }
+    };
+
+    XHRPromise.prototype.checkInterceptor = function checkInterceptor (interceptorName, xhr) {
+        if (interceptorName && typeof XHR.interceptors[interceptorName] === 'function') {
+            return XHR.interceptors[interceptorName](xhr) || this.silent;
+        }
+        return true;
+    };
+
+    XHRPromise.prototype.applyOwnInterceptor = function applyOwnInterceptor (interceptorName, data) {
+        var interceptor = this.interceptors[interceptorName];
+        if (typeof interceptor === 'function') {
+            return interceptor(data);
+        } else {
+            return data;
         }
     };
 
