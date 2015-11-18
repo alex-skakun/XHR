@@ -149,7 +149,11 @@
                     setHeaders(xhr, config.headers);
                     // sending
                     setTimeout(function () {
-                        xhr.send(dataForSend);
+                        if (xhr.readyState === XMLHttpRequest.OPENED || !result.xhrCollection.aborted) {
+                            xhr.send(dataForSend);
+                        } else {
+                            result.applyCallback('abort');
+                        }
                     }, 0);
                 }
             };
