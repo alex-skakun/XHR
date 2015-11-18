@@ -37,7 +37,7 @@
             throw new Error('Config object is required.');
         } else {
             var xhr = new XMLHttpRequest(),
-                result = promise.addToQueue(xhr) || new XHR.XHRPromise(xhr),
+                result = promise ? promise.addToQueue(xhr) : new XHR.XHRPromise(xhr),
                 queryParams = '',
                 async = true,
                 dataForSend = null;
