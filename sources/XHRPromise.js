@@ -9,8 +9,11 @@
 
     function XHRPromise (xhr) {
         var _this = this;
+        this.xhrCollection = new XHR.XHRCollection(this);
+        this.xhrCollection.push(xhr);
         this.silent = false;
         this.interceptors = {};
+        this.queue = [];
         this.callbacks = {
             error: null,
             loadStart: null,
@@ -57,17 +60,12 @@
                 _this.callbacks.success = callback;
                 return _this.actions;
             },
+            then: function (callback) {
+                _this.queue.push(callback);
+                return _this.actions;
+            },
             getXHR: function getXHR () {
-                if (xhr instanceof XMLHttpRequest) {
-                    return xhr;
-                } else {
-                    return {
-                        abort: function () {
-                            clearTimeout(xhr);
-                            _this.applyCallback('abort');
-                        }
-                    };
-                }
+                return _this.xhrCollection;
             }
         };
 
@@ -96,6 +94,15 @@
         } else {
             return data;
         }
+    };
+
+    XHRPromise.prototype.getNext = function getNext () {
+        return this.queue.shift();
+    };
+
+    XHRPromise.prototype.addToQueue = function addToQueue (xhr) {
+        this.xhrCollection.push(xhr);
+        return this;
     };
 
     XHR.XHRPromise = XHRPromise;

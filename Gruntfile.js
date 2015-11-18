@@ -8,7 +8,8 @@ module.exports = function (grunt) {
                 files: {
                     './xhr.js': [
                         './sources/XHR.js',
-                        './sources/XHRPromise.js'
+                        './sources/XHRPromise.js',
+                        './sources/XHRCollection.js'
                     ]
                 }
             }

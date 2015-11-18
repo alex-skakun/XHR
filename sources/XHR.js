@@ -32,12 +32,12 @@
     }
 
 
-    function XHR (config) {
+    function XHR (config, promise) {
         if (!config) {
             throw new Error('Config object is required.');
         } else {
             var xhr = new XMLHttpRequest(),
-                result = new XHR.XHRPromise(xhr),
+                result = promise.addToQueue(xhr) || new XHR.XHRPromise(xhr),
                 queryParams = '',
                 async = true,
                 dataForSend = null;
@@ -126,7 +126,16 @@
                     }
                 }
                 if (xhr.status >= 200 && xhr.status < 400) {
-                    result.applyCallback('success', response, xhr);
+                    if (result.queue.length) {
+                        var config = result.getNext();
+                        if (typeof config === 'function' && !result.xhrCollection.aborted) {
+                            if (result.checkInterceptor('response', xhr)) {
+                                XHR(config(response), result);
+                            }
+                        }
+                    } else {
+                        result.applyCallback('success', response, xhr);
+                    }
                 } else if (xhr.status >= 400 && xhr.status < 600) {
                     result.applyCallback('error', response, xhr);
                 }

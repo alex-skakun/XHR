@@ -32,12 +32,12 @@
     }
 
 
-    function XHR (config) {
+    function XHR (config, promise) {
         if (!config) {
             throw new Error('Config object is required.');
         } else {
             var xhr = new XMLHttpRequest(),
-                result = new XHR.XHRPromise(xhr),
+                result = promise.addToQueue(xhr) || new XHR.XHRPromise(xhr),
                 queryParams = '',
                 async = true,
                 dataForSend = null;
@@ -126,7 +126,16 @@
                     }
                 }
                 if (xhr.status >= 200 && xhr.status < 400) {
-                    result.applyCallback('success', response, xhr);
+                    if (result.queue.length) {
+                        var config = result.getNext();
+                        if (typeof config === 'function' && !result.xhrCollection.aborted) {
+                            if (result.checkInterceptor('response', xhr)) {
+                                XHR(config(response), result);
+                            }
+                        }
+                    } else {
+                        result.applyCallback('success', response, xhr);
+                    }
                 } else if (xhr.status >= 400 && xhr.status < 600) {
                     result.applyCallback('error', response, xhr);
                 }
@@ -183,8 +192,11 @@
 
     function XHRPromise (xhr) {
         var _this = this;
+        this.xhrCollection = new XHR.XHRCollection(this);
+        this.xhrCollection.push(xhr);
         this.silent = false;
         this.interceptors = {};
+        this.queue = [];
         this.callbacks = {
             error: null,
             loadStart: null,
@@ -231,17 +243,12 @@
                 _this.callbacks.success = callback;
                 return _this.actions;
             },
+            then: function (callback) {
+                _this.queue.push(callback);
+                return _this.actions;
+            },
             getXHR: function getXHR () {
-                if (xhr instanceof XMLHttpRequest) {
-                    return xhr;
-                } else {
-                    return {
-                        abort: function () {
-                            clearTimeout(xhr);
-                            _this.applyCallback('abort');
-                        }
-                    };
-                }
+                return _this.xhrCollection;
             }
         };
 
@@ -272,6 +279,52 @@
         }
     };
 
+    XHRPromise.prototype.getNext = function getNext () {
+        return this.queue.shift();
+    };
+
+    XHRPromise.prototype.addToQueue = function addToQueue (xhr) {
+        this.xhrCollection.push(xhr);
+        return this;
+    };
+
     XHR.XHRPromise = XHRPromise;
 
 }(window.XHR));
+
+(function (XHR) {
+
+    'use strict';
+
+    function XHRCollection (result) {
+        Array.call(this);
+        this.result = result;
+        this.aborted = false;
+    }
+
+    XHRCollection.prototype = Object.create(Array.prototype, {
+        constructor: {
+            value: XHRCollection
+        },
+        abort: {
+            value: function abort () {
+                this.forEach(function (xhr) {
+                    if (xhr instanceof XMLHttpRequest) {
+                        xhr.abort();
+                    } else {
+                        clearTimeout(xhr);
+                        this.result.applyCallback('abort');
+                    }
+                }, this);
+                this.aborted = true;
+            }
+        }
+    });
+
+    XHR.XHRCollection = XHRCollection;
+
+}(XHR));
+
+
+
+
