@@ -79,11 +79,6 @@
                 async = !!config.async;
             }
 
-            xhr.open(config.method, config.url + queryParams, async);
-
-            // setting default and user settings
-            setHeaders(xhr, config.headers);
-
             // setting data
             if (config.data !== undefined) {
                 var d = config.data;
@@ -146,10 +141,21 @@
                 }
             }, false);
 
-            // sending
-            setTimeout(function () {
-                xhr.send(dataForSend);
-            }, 0);
+            // waits for opening
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === XMLHttpRequest.OPENED) {
+                    xhr.onreadystatechange = null;
+                    // setting default and user headers
+                    setHeaders(xhr, config.headers);
+                    // sending
+                    setTimeout(function () {
+                        xhr.send(dataForSend);
+                    }, 0);
+                }
+            };
+
+            xhr.open(config.method, config.url + queryParams, async);
+
             return result.actions;
         }
     }
