@@ -130,7 +130,12 @@
                         var config = result.getNext();
                         if (typeof config === 'function' && !result.xhrCollection.aborted) {
                             if (result.checkInterceptor('response', xhr)) {
-                                XHR(config(response), result);
+                                var configObject = config(response);
+                                if (configObject) {
+                                    XHR(config(response), result);
+                                } else {
+                                    result.applyCallback('success', response, xhr);
+                                }
                             }
                         }
                     } else {
