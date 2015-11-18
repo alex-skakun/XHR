@@ -132,7 +132,7 @@
                             if (result.checkInterceptor('response', xhr)) {
                                 var configObject = config(response);
                                 if (configObject) {
-                                    XHR(config(response), result);
+                                    XHR(configObject, result);
                                 } else {
                                     result.applyCallback('success', response, xhr);
                                 }
