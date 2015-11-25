@@ -16,9 +16,9 @@
         this.queue = [];
         this.callbacks = {
             error: null,
-            loadStart: null,
+            loadstart: null,
             progress: null,
-            loadEnd: null,
+            loadend: null,
             abort: null,
             load: null,
             success: null
@@ -37,7 +37,7 @@
                 return _this.actions;
             },
             loadStart: function loadStart (callback) {
-                _this.callbacks.loadStart = callback;
+                _this.callbacks.loadstart = callback;
                 return _this.actions;
             },
             progress: function progress (callback) {
@@ -45,7 +45,7 @@
                 return _this.actions;
             },
             loadEnd: function loadEnd (callback) {
-                _this.callbacks.loadEnd = callback;
+                _this.callbacks.loadend = callback;
                 return _this.actions;
             },
             abort: function abort (callback) {
