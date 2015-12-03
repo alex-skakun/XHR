@@ -1,6 +1,6 @@
 {
   "name": "XHR",
-  "version": "1.2.7",
+  "version": "1.2.8",
   "main": [
     "xhr.js",
     "xhr.min.js"

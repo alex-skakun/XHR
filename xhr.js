@@ -96,24 +96,24 @@
 
             // adding event listeners
             xhr.addEventListener('error', function (e) {
-                result.applyCallback('error', e);
+                result.applyCallback('error', e, xhr);
             });
             xhr.addEventListener('progress', function (e) {
-                result.applyCallback('progress', e);
+                result.applyCallback('progress', e, xhr);
             });
             xhr.addEventListener('loadstart', function (e) {
-                result.applyCallback('loadstart', e);
+                result.applyCallback('loadstart', e, xhr);
             });
             xhr.addEventListener('loadend', function (e) {
-                result.applyCallback('loadend', e);
+                result.applyCallback('loadend', e, xhr);
             });
             xhr.addEventListener('abort', function (e) {
-                result.applyCallback('abort', e);
+                result.applyCallback('abort', e, xhr);
             });
             xhr.addEventListener('load', function (e) {
-                result.applyCallback('load', e);
+                result.applyCallback('load', e, xhr);
                 var response = xhr.response;
-                if (xhr.responseType !== 'json') {
+                if (xhr.responseType === '' || xhr.responseType === 'text') {
                     try {
                         response = JSON.parse(xhr.responseText);
                     } catch (e) {
