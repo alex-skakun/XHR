@@ -24,5 +24,8 @@
     "xhr",
     "json"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "EventTargetExtendable": "https://github.com/alex-skakun/EventTargetExtendable.git#~0.9.0"
+  }
 }

@@ -9,6 +9,7 @@
 
     function XHRPromise (xhr) {
         var _this = this;
+        this.inProgress = true;
         this.xhrCollection = new XHR.XHRCollection(this);
         this.xhrCollection.push(xhr);
         this.silent = false;
@@ -24,6 +25,9 @@
             success: null
         };
         this.actions = {
+            isInProgress: function isInProgress () {
+                return _this.inProgress;
+            },
             interceptors: function interceptors (data) {
                 _this.interceptors = data;
                 return _this.actions;
@@ -33,31 +37,31 @@
                 return _this.actions;
             },
             error: function error (callback) {
-                _this.callbacks.error = callback;
+                _this.addEventListener('error', callback);
                 return _this.actions;
             },
             loadStart: function loadStart (callback) {
-                _this.callbacks.loadstart = callback;
+                _this.addEventListener('loadstart', callback);
                 return _this.actions;
             },
             progress: function progress (callback) {
-                _this.callbacks.progress = callback;
+                _this.addEventListener('progress', callback);
                 return _this.actions;
             },
             loadEnd: function loadEnd (callback) {
-                _this.callbacks.loadend = callback;
+                _this.addEventListener('loadend', callback);
                 return _this.actions;
             },
             abort: function abort (callback) {
-                _this.callbacks.abort = callback;
+                _this.addEventListener('abort', callback);
                 return _this.actions;
             },
             load: function load (callback) {
-                _this.callbacks.load = callback;
+                _this.addEventListener('load', callback);
                 return _this.actions;
             },
             success: function success (callback) {
-                _this.callbacks.success = callback;
+                _this.addEventListener('success', callback);
                 return _this.actions;
             },
             then: function (callback) {
@@ -71,11 +75,21 @@
 
     }
 
+    XHRPromise.prototype = Object.create(EventTargetExtendable.prototype, {
+        constructor: {
+            value: XHRPromise
+        }
+    });
+
     XHRPromise.prototype.applyCallback = function applyCallback (callbackName, data, xhr) {
         var callback = this.callbacks[callbackName];
         if (this.checkInterceptor(interceptorTypes[callbackName], xhr)) {
             if (typeof callback === 'function') {
-                callback.call(null, this.applyOwnInterceptor(interceptorTypes[callbackName], data), xhr);
+                this.dispatchEvent(callbackName, this.applyOwnInterceptor(interceptorTypes[callbackName], data), xhr);
+            }
+            if (callbackName === 'success' || callbackName === 'error' || callbackName === 'abort') {
+                this.inProgress = false;
+                this.removeAllListeners();
             }
         }
     };

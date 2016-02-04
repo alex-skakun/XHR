@@ -1,0 +1,14 @@
+{
+  "name": "EventTargetExtendable",
+  "homepage": "https://github.com/alex-skakun/EventTargetExtendable",
+  "version": "0.9.0",
+  "_release": "0.9.0",
+  "_resolution": {
+    "type": "version",
+    "tag": "v0.9.0",
+    "commit": "e4e7d3d9fe53bb4d3baf544adf84bf9678ef687b"
+  },
+  "_source": "https://github.com/alex-skakun/EventTargetExtendable.git",
+  "_target": "~0.9.0",
+  "_originalSource": "https://github.com/alex-skakun/EventTargetExtendable.git"
+}
