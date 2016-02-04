@@ -121,21 +121,34 @@
                     }
                 }
                 if (xhr.status >= 200 && xhr.status < 400) {
-                    if (result.queue.length) {
-                        var config = result.getNext();
-                        if (typeof config === 'function' && !result.xhrCollection.aborted) {
-                            if (result.checkInterceptor('response', xhr)) {
-                                var configObject = config(response);
-                                if (configObject) {
-                                    XHR(configObject, result);
-                                } else {
-                                    result.applyCallback('success', response, xhr);
+                    var applyQueue = function (response) {
+                        if (result.queue.length) {
+                            var config = result.getNext();
+                            if (typeof config === 'function' && !result.xhrCollection.aborted) {
+                                if (result.checkInterceptor('response', xhr)) {
+                                    var configObject = config(response);
+                                    if (configObject) {
+                                        if (configObject.hasOwnProperty('url')) {
+                                            XHR(configObject, result);
+                                        } else {
+                                            configObject
+                                                .success(function (data) {
+                                                    applyQueue(data);
+                                                })
+                                                .error(function (error) {
+                                                    applyQueue(error);
+                                                });
+                                        }
+                                    } else {
+                                        result.applyCallback('success', response, xhr);
+                                    }
                                 }
                             }
+                        } else {
+                            result.applyCallback('success', response, xhr);
                         }
-                    } else {
-                        result.applyCallback('success', response, xhr);
-                    }
+                    };
+                    applyQueue(response);
                 } else if (xhr.status >= 400 && xhr.status < 600) {
                     result.applyCallback('error', response, xhr);
                 }

@@ -15,15 +15,6 @@
         this.silent = false;
         this.interceptors = {};
         this.queue = [];
-        this.callbacks = {
-            error: null,
-            loadstart: null,
-            progress: null,
-            loadend: null,
-            abort: null,
-            load: null,
-            success: null
-        };
         this.actions = {
             isInProgress: function isInProgress () {
                 return _this.inProgress;
