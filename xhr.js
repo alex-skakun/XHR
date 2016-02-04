@@ -1,3 +1,4 @@
+!function(){"use strict";function e(e){if("function"==typeof e){for(var r=n,t=0,i=r.length;i>t;t++){var o=r[t];if(e(o))return o}return null}return null}function r(r,t){var i=e(function(e){return e.target===r});if(i){var o=i.listeners[t];return o||(i.listeners[t]=[],o=i.listeners[t]),o}var a={target:r,listeners:{}};a.listeners[t]=[];var u=n.push(a);return n[u-1].listeners[t]}function t(e){if(Array.isArray(e)){var r={};e.forEach(function(e){var t=e.trim().toLowerCase(),n="on"+t;Object.defineProperty(this,n,{enumerable:!0,configurable:!1,get:function(){return r[t]||null},set:function(e){var n=r[t];n&&this.removeEventListener(t,n),"function"==typeof e&&(r[t]=e,this.addEventListener(t,e))}})},this)}}var n=[];t.prototype.addEventListener=function(e,t){if("function"==typeof t){var n=r(this,e);return Array.isArray(n)&&n.push(t),!0}return!1},t.prototype.removeEventListener=function(e,t){var n=r(this,e);if(Array.isArray(n)){var i=n.indexOf(t);return i>-1?(n.splice(i,1),!0):!1}return!1},t.prototype.dispatchEvent=function(e){var t=r(this,e),n=this,i=Array.prototype.slice.call(arguments,1);Array.isArray(t)&&t.forEach(function(e){"function"==typeof e&&e.apply(n,i)})},t.prototype.removeAllListeners=function(){var r=this,t=e(function(e){return e.target===r});if(t){var i=n.indexOf(t);if(i>-1){var o=n.splice(i,1);return 1===o.length}return!1}return!1};for(var i=t.prototype,o=Object.keys(t.prototype),a=0,u=o.length;u>a;a++)Object.defineProperty(i,o[a],{enumerable:!1,configurable:!1,writable:!1});window&&(window.EventTargetExtendable=t),"function"==typeof define&&null!==define.amd&&define("EventTargetExtendable",[],function(){return t})}();
 (function (global) {
 
     'use strict';
@@ -207,6 +208,7 @@
 
     function XHRPromise (xhr) {
         var _this = this;
+        this.inProgress = true;
         this.xhrCollection = new XHR.XHRCollection(this);
         this.xhrCollection.push(xhr);
         this.silent = false;
@@ -222,6 +224,9 @@
             success: null
         };
         this.actions = {
+            isInProgress: function isInProgress () {
+                return _this.inProgress;
+            },
             interceptors: function interceptors (data) {
                 _this.interceptors = data;
                 return _this.actions;
@@ -231,31 +236,31 @@
                 return _this.actions;
             },
             error: function error (callback) {
-                _this.callbacks.error = callback;
+                _this.addEventListener('error', callback);
                 return _this.actions;
             },
             loadStart: function loadStart (callback) {
-                _this.callbacks.loadstart = callback;
+                _this.addEventListener('loadstart', callback);
                 return _this.actions;
             },
             progress: function progress (callback) {
-                _this.callbacks.progress = callback;
+                _this.addEventListener('progress', callback);
                 return _this.actions;
             },
             loadEnd: function loadEnd (callback) {
-                _this.callbacks.loadend = callback;
+                _this.addEventListener('loadend', callback);
                 return _this.actions;
             },
             abort: function abort (callback) {
-                _this.callbacks.abort = callback;
+                _this.addEventListener('abort', callback);
                 return _this.actions;
             },
             load: function load (callback) {
-                _this.callbacks.load = callback;
+                _this.addEventListener('load', callback);
                 return _this.actions;
             },
             success: function success (callback) {
-                _this.callbacks.success = callback;
+                _this.addEventListener('success', callback);
                 return _this.actions;
             },
             then: function (callback) {
@@ -269,11 +274,21 @@
 
     }
 
+    XHRPromise.prototype = Object.create(EventTargetExtendable.prototype, {
+        constructor: {
+            value: XHRPromise
+        }
+    });
+
     XHRPromise.prototype.applyCallback = function applyCallback (callbackName, data, xhr) {
         var callback = this.callbacks[callbackName];
         if (this.checkInterceptor(interceptorTypes[callbackName], xhr)) {
             if (typeof callback === 'function') {
-                callback.call(null, this.applyOwnInterceptor(interceptorTypes[callbackName], data), xhr);
+                this.dispatchEvent(callbackName, this.applyOwnInterceptor(interceptorTypes[callbackName], data), xhr);
+            }
+            if (callbackName === 'success' || callbackName === 'error' || callbackName === 'abort') {
+                this.inProgress = false;
+                this.removeAllListeners();
             }
         }
     };
