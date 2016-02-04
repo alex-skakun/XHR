@@ -82,11 +82,8 @@
     });
 
     XHRPromise.prototype.applyCallback = function applyCallback (callbackName, data, xhr) {
-        var callback = this.callbacks[callbackName];
         if (this.checkInterceptor(interceptorTypes[callbackName], xhr)) {
-            if (typeof callback === 'function') {
-                this.dispatchEvent(callbackName, this.applyOwnInterceptor(interceptorTypes[callbackName], data), xhr);
-            }
+            this.dispatchEvent(callbackName, this.applyOwnInterceptor(interceptorTypes[callbackName], data), xhr);
             if (callbackName === 'success' || callbackName === 'error' || callbackName === 'abort') {
                 this.inProgress = false;
                 this.removeAllListeners();
