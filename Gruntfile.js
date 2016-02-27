@@ -7,7 +7,7 @@ module.exports = function (grunt) {
             release: {
                 files: {
                     './xhr.js': [
-                        './bower_components/EventTargetExtendable/dist/ete.min.js',
+                        './bower_components/EventTargetExtendable/dist/ete.js',
                         './sources/XHR.js',
                         './sources/XHRPromise.js',
                         './sources/XHRCollection.js'
@@ -22,6 +22,7 @@ module.exports = function (grunt) {
             release: {
                 files: {
                     './xhr.min.js': [
+                        './bower_components/EventTargetExtendable/dist/ete.min.js',
                         './xhr.js'
                     ]
                 }

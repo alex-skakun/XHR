@@ -4,8 +4,12 @@ Base class, that can add functionality of events to your classes in code for bro
 ## How to use
 
     function YourClass (someArgs) {
-    
-        // object initialization
+        // You can define list of events (optional)
+        EventTargetExtendable.call(this, [
+            'start',
+            'finish',
+            'data'
+        ]); 
     
     }
     
@@ -16,17 +20,26 @@ Base class, that can add functionality of events to your classes in code for bro
         }
     });
     
-    // define YourClass methods below 
-    
-    
     var yourInstance = new YourClass();
     
-    yourInstance.addEventListener('eventname', function (eventArgs) {
+    yourInstance.addEventListener('start', function (eventArgs) {
         // event handler actions
     });
     
     // somewhere in code
-    yourInstance.dispatchEvent('eventname', eventArgs [, eventArgs2, ...]);
+    yourInstance.dispatchEvent('start', eventArgs [, eventArgs2, ...]);
+    
+    // or you can use predefined event properties
+    yourInstance.onstart = function (eventArgs) {
+        // event handler actions
+    };
+    
+##Instance methods
+
+- addEventListener(eventType, listenerFunction) - Returns true if event listener has been added;
+- removeEventListener(eventType, listenerFunction) - Returns true if event listener has been removed;
+- removeAllListeners([eventType]) - Removes all event listeners or all listeners for specified eventType. Returns true if listeners have been removed;
+- dispatchEvent(eventType[, eventArgs, eventArgs2, ...]) - Fires all event listener for specified type.
     
     
     

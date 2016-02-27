@@ -1,14 +1,14 @@
 {
   "name": "EventTargetExtendable",
   "homepage": "https://github.com/alex-skakun/EventTargetExtendable",
-  "version": "0.9.0",
-  "_release": "0.9.0",
+  "version": "1.0.2",
+  "_release": "1.0.2",
   "_resolution": {
     "type": "version",
-    "tag": "v0.9.0",
-    "commit": "e4e7d3d9fe53bb4d3baf544adf84bf9678ef687b"
+    "tag": "v1.0.2",
+    "commit": "cd208d451221227bd5a2748c8aae2d5cb89f11bc"
   },
   "_source": "https://github.com/alex-skakun/EventTargetExtendable.git",
-  "_target": "~0.9.0",
+  "_target": "~1.0.2",
   "_originalSource": "https://github.com/alex-skakun/EventTargetExtendable.git"
 }

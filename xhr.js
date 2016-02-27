@@ -1,4 +1,226 @@
-!function(){"use strict";function e(e){if("function"==typeof e){for(var r=n,t=0,i=r.length;i>t;t++){var o=r[t];if(e(o))return o}return null}return null}function r(r,t){var i=e(function(e){return e.target===r});if(i){var o=i.listeners[t];return o||(i.listeners[t]=[],o=i.listeners[t]),o}var a={target:r,listeners:{}};a.listeners[t]=[];var u=n.push(a);return n[u-1].listeners[t]}function t(e){if(Array.isArray(e)){var r={};e.forEach(function(e){var t=e.trim().toLowerCase(),n="on"+t;Object.defineProperty(this,n,{enumerable:!0,configurable:!1,get:function(){return r[t]||null},set:function(e){var n=r[t];n&&this.removeEventListener(t,n),"function"==typeof e&&(r[t]=e,this.addEventListener(t,e))}})},this)}}var n=[];t.prototype.addEventListener=function(e,t){if("function"==typeof t){var n=r(this,e);return Array.isArray(n)&&n.push(t),!0}return!1},t.prototype.removeEventListener=function(e,t){var n=r(this,e);if(Array.isArray(n)){var i=n.indexOf(t);return i>-1?(n.splice(i,1),!0):!1}return!1},t.prototype.dispatchEvent=function(e){var t=r(this,e),n=this,i=Array.prototype.slice.call(arguments,1);Array.isArray(t)&&t.forEach(function(e){"function"==typeof e&&e.apply(n,i)})},t.prototype.removeAllListeners=function(){var r=this,t=e(function(e){return e.target===r});if(t){var i=n.indexOf(t);if(i>-1){var o=n.splice(i,1);return 1===o.length}return!1}return!1};for(var i=t.prototype,o=Object.keys(t.prototype),a=0,u=o.length;u>a;a++)Object.defineProperty(i,o[a],{enumerable:!1,configurable:!1,writable:!1});window&&(window.EventTargetExtendable=t),"function"==typeof define&&null!==define.amd&&define("EventTargetExtendable",[],function(){return t})}();
+/**
+ * @param {Object} global
+ * @param {Function} EventCollection
+ * @param {Function} EventCollectionItem
+ */
+(function (global, EventCollection, EventCollectionItem) {
+
+    'use strict';
+
+    var EVENT_LISTENERS = new EventCollection();
+
+    function findTargetItem (target) {
+        var allForThisTarget = EVENT_LISTENERS.findForTarget(target);
+        if (!allForThisTarget) {
+            allForThisTarget = new EventCollectionItem(target);
+            EVENT_LISTENERS.add(allForThisTarget);
+        }
+        return allForThisTarget;
+    }
+
+    function EventTargetExtendable (eventsArray) {
+        if (Array.isArray(eventsArray)) {
+            var listeners = {};
+            eventsArray.forEach(function (eventName) {
+                var event = eventName.trim().toLowerCase(),
+                    property = 'on' + event;
+                Object.defineProperty(this, property, {
+                    enumerable: true,
+                    configurable: false,
+                    get: function () {
+                        return listeners[event] || null;
+                    },
+                    set: function (listener) {
+                        var oldListener = listeners[event];
+                        if (oldListener) {
+                            this.removeEventListener(event, oldListener);
+                        }
+                        if (typeof listener === 'function') {
+                            listeners[event] = listener;
+                            this.addEventListener(event, listener);
+                        }
+                    }
+                });
+            }, this);
+        }
+    }
+
+    EventTargetExtendable.prototype.addEventListener = function addEventListener (eventType, listener) {
+        if (typeof listener === 'function') {
+            var targetItem = findTargetItem(this);
+            return targetItem.addListener(eventType, listener);
+        }
+        return false;
+    };
+
+    EventTargetExtendable.prototype.removeEventListener = function removeEventListener (eventType, listener) {
+        var targetItem = findTargetItem(this);
+        return targetItem.removeListener(eventType, listener);
+    };
+
+    EventTargetExtendable.prototype.dispatchEvent = function dispatchEvent (eventType) {
+        var targetItem = findTargetItem(this),
+            listeners = targetItem.getListenersByType(eventType),
+            args = Array.prototype.slice.call(arguments, 1),
+            _this = this;
+        if (listeners) {
+            listeners.forEach(function (listener) {
+                if (typeof listener === 'function') {
+                    listener.apply(_this, args);
+                }
+            });
+        }
+    };
+
+    EventTargetExtendable.prototype.removeAllListeners = function removeAllListeners (type) {
+        var targetItem = findTargetItem(this);
+        if (type) {
+            return targetItem.removeListeners(type);
+        } else {
+            return EVENT_LISTENERS.remove(targetItem);
+        }
+    };
+
+    var prototype = EventTargetExtendable.prototype,
+        methods = Object.keys(EventTargetExtendable.prototype);
+    for (var i = 0, l = methods.length; i < l; i++) {
+        Object.defineProperty(prototype, methods[i], {
+            enumerable: false,
+            configurable: false,
+            writable: false
+        });
+    }
+
+    global.EventTargetExtendable = EventTargetExtendable;
+
+}(this,
+    (function () {
+    
+        'use strict';
+    
+        function EventCollection () {
+            var CollectionConstructor;
+            try {
+                CollectionConstructor = Map;
+            } catch (e) {
+                CollectionConstructor = Array;
+            }
+            this.collection = new CollectionConstructor();
+        }
+    
+        EventCollection.prototype.findForTarget = function findForTarget (target) {
+            if (Array.isArray(this.collection)) {
+                var collection = this.collection;
+                for (var i = 0, l = collection.length; i < l; i++) {
+                    var item = collection[i];
+                    if (item.target === target) {
+                        return item;
+                    }
+                }
+            } else {
+                return this.collection.get(target);
+            }
+            return null;
+        };
+    
+        EventCollection.prototype.add = function add (item) {
+            if (Array.isArray(this.collection)) {
+                this.collection.push(item);
+            } else {
+                this.collection.set(item.target, item);
+            }
+        };
+    
+        EventCollection.prototype.remove = function remove (item) {
+            if (Array.isArray(this.collection)) {
+                var index = this.collection.indexOf(item);
+                if (index > -1) {
+                    var removed = this.collection.splice(index, 1);
+                    return removed.length === 1;
+                }
+                return false;
+            } else {
+                return this.collection.delete(item.target);
+            }
+        };
+    
+        return EventCollection;
+    
+    }()),
+    (function () {
+    
+        'use strict';
+    
+        function EventCollectionItem (target) {
+            this.target = target;
+            this.listeners = {};
+        }
+    
+        EventCollectionItem.createListenersCollection = function createListenersCollection () {
+            var CollectionConstructor;
+            try {
+                CollectionConstructor = Set;
+            } catch (e) {
+                CollectionConstructor = Array;
+            }
+            return new CollectionConstructor();
+        };
+    
+        EventCollectionItem.prototype.getListenersByType = function getListenersByType (type) {
+            var listeners = this.listeners[type];
+            if (!listeners) {
+                listeners = EventCollectionItem.createListenersCollection();
+                this.listeners[type] = listeners;
+            }
+            return listeners;
+        };
+    
+        EventCollectionItem.prototype.addListener = function addListener (type, listener) {
+            var listeners = this.getListenersByType(type);
+            if (Array.isArray(listeners)) {
+                if (!~listeners.indexOf(listener)) {
+                    listeners.push(listener);
+                    return true;
+                }
+                return false;
+            } else {
+                if (!listeners.has(listener)) {
+                    listeners.add(listener);
+                    return true;
+                }
+                return false;
+            }
+        };
+    
+        EventCollectionItem.prototype.removeListener = function removeListener (type, listener) {
+            var listeners = this.getListenersByType(type);
+            if (Array.isArray(listeners)) {
+                var index = listeners.indexOf(listener);
+                if (index > -1) {
+                    var deleted = listeners.splice(index, 1);
+                    return deleted.length === 1;
+                }
+                return false;
+            } else {
+                return listeners.delete(listener);
+            }
+        };
+    
+        EventCollectionItem.prototype.removeListeners = function removeListeners (type) {
+            var listeners = this.getListenersByType(type);
+            if (Array.isArray(listeners)) {
+                listeners.splice(0, listeners.length);
+            } else {
+                listeners.clear();
+            }
+            return true;
+        };
+    
+        return EventCollectionItem;
+    
+    }())
+));
+
 (function (global) {
 
     'use strict';
