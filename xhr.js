@@ -64,11 +64,15 @@
             args = Array.prototype.slice.call(arguments, 1),
             _this = this;
         if (listeners) {
+            var forExecution = [];
             listeners.forEach(function (listener) {
                 if (typeof listener === 'function') {
-                    listener.apply(_this, args);
+                    forExecution.push(listener);
                 }
             });
+            forExecution.forEach(function (listener) {
+                listener.apply(_this, args);
+            })
         }
     };
 

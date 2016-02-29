@@ -26,6 +26,6 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "EventTargetExtendable": "https://github.com/alex-skakun/EventTargetExtendable.git#~1.0.2"
+    "EventTargetExtendable": "https://github.com/alex-skakun/EventTargetExtendable.git#~1.1.0"
   }
 }
