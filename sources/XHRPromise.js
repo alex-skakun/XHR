@@ -84,7 +84,7 @@
 
     XHRPromise.prototype.checkInterceptor = function checkInterceptor (interceptorName, xhr) {
         if (interceptorName && typeof XHR.interceptors[interceptorName] === 'function') {
-            return XHR.interceptors[interceptorName](xhr) || this.silent;
+            return XHR.interceptors[interceptorName](xhr, this.silent) || this.silent;
         }
         return true;
     };
