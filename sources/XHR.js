@@ -98,6 +98,9 @@
             xhr.addEventListener('error', function (e) {
                 result.applyCallback('error', e, xhr);
             });
+            xhr.addEventListener('timeout', function (e) {
+                result.applyCallback('timeout', e, xhr);
+            });
             xhr.addEventListener('progress', function (e) {
                 result.applyCallback('progress', e, xhr);
             });

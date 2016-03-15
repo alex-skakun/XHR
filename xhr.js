@@ -325,6 +325,9 @@
             xhr.addEventListener('error', function (e) {
                 result.applyCallback('error', e, xhr);
             });
+            xhr.addEventListener('timeout', function (e) {
+                result.applyCallback('timeout', e, xhr);
+            });
             xhr.addEventListener('progress', function (e) {
                 result.applyCallback('progress', e, xhr);
             });
@@ -493,6 +496,10 @@
                 _this.addEventListener('success', callback);
                 return _this.actions;
             },
+            timeout: function timeout (callback) {
+                _this.addEventListener('timeout', callback);
+                return _this.actions;
+            },
             then: function (callback) {
                 _this.queue.push(callback);
                 return _this.actions;
@@ -513,7 +520,7 @@
     XHRPromise.prototype.applyCallback = function applyCallback (callbackName, data, xhr) {
         if (this.checkInterceptor(interceptorTypes[callbackName], xhr)) {
             this.dispatchEvent(callbackName, this.applyOwnInterceptor(interceptorTypes[callbackName], data), xhr);
-            if (callbackName === 'success' || callbackName === 'error' || callbackName === 'abort') {
+            if (callbackName === 'success' || callbackName === 'error' || callbackName === 'abort' || callbackName === 'timeout') {
                 this.inProgress = false;
                 this.removeAllListeners();
             }
