@@ -3,6 +3,7 @@
     'use strict';
 
     var interceptorTypes = {
+        loadstart: 'request',
         success: 'response',
         error: 'responseError'
     };
