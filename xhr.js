@@ -518,11 +518,24 @@
     });
 
     XHRPromise.prototype.applyCallback = function applyCallback (callbackName, data, xhr) {
+        var _this = this;
         if (this.checkInterceptor(interceptorTypes[callbackName], xhr)) {
-            this.dispatchEvent(callbackName, this.applyOwnInterceptor(interceptorTypes[callbackName], data), xhr);
-            if (callbackName === 'success' || callbackName === 'error' || callbackName === 'abort' || callbackName === 'timeout') {
-                this.inProgress = false;
-                this.removeAllListeners();
+            var ownInterceptorResult = this.applyOwnInterceptor(interceptorTypes[callbackName], data),
+                continueToCallback = function (interceptorResult) {
+                    _this.dispatchEvent(callbackName, interceptorResult, xhr);
+                    if (callbackName === 'success' || callbackName === 'error' || callbackName === 'abort' || callbackName === 'timeout') {
+                        _this.inProgress = false;
+                        _this.removeAllListeners();
+                    }
+                };
+            if (ownInterceptorResult instanceof Promise) {
+                ownInterceptorResult
+                    .then(continueToCallback)
+                    .catch(function (err) {
+                        _this.applyCallback('error', err, xhr);
+                    });
+            } else {
+                continueToCallback(ownInterceptorResult);
             }
         }
     };
