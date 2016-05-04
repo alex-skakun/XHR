@@ -1,6 +1,76 @@
-(function (global) {
+/* @include ../bower_components/EventTargetExtendable/dist/ete.js */
+(function (global, XHRActions, XHRPromise, XHRCollection) {
 
     'use strict';
+
+    var Promise = global.Promise;
+
+    function setAttributes (_attributes, xhr) {
+        var resultAttributes = {},
+            defaultAttributes = Object.keys(XHR.defaults.attributes),
+            attr,
+            attributesNames,
+            i, l;
+        for (i = 0, l = defaultAttributes.length; i < l; i++) {
+            attr = defaultAttributes[i];
+            resultAttributes[attr] = XHR.defaults.attributes[attr];
+        }
+        if (_attributes && typeof _attributes === 'object') {
+            var userAttributes = Object.keys(_attributes);
+            for (i = 0, l = userAttributes.length; i < l; i++) {
+                attr = userAttributes[i];
+                resultAttributes[attr] = _attributes[attr];
+                xhr[attr] = _attributes[attr];
+            }
+        }
+        attributesNames = Object.keys(resultAttributes);
+        for (i = 0, l = attributesNames.length; i < l; i++) {
+            attr = attributesNames[i];
+            xhr[attr] = resultAttributes[attr];
+        }
+    }
+
+    function setQueryParams (_params) {
+        var queryParams = '';
+        if (_params && typeof _params === 'object') {
+            var params = [],
+                paramsKeys = Object.keys(_params);
+            paramsKeys.forEach(function (param) {
+                var value = _params[param];
+                if (Array.isArray(value)) {
+                    value.forEach(function (val) {
+                        params.push(param + '=' + val);
+                    });
+                } else if (typeof value === 'object' && value) {
+                    params.push(param + '=' + JSON.stringify(value));
+                } else if (typeof value !== 'undefined') {
+                    params.push(param + '=' + value);
+                }
+            });
+            if (params.length) {
+                queryParams = '?' + params.join('&');
+            }
+        }
+        return queryParams;
+    }
+
+    function setData (data) {
+        var dataForSend = null;
+        if (data !== undefined) {
+            var d = data;
+            if (d instanceof (global.ArrayBufferView || global.ArrayBuffer) || d instanceof global.Blob ||
+                d instanceof global.Document || d instanceof global.FormData) {
+                dataForSend = d;
+            } else {
+                if (typeof d === 'object' && d) {
+                    dataForSend = JSON.stringify(d);
+                } else {
+                    dataForSend = String(d);
+                }
+            }
+        }
+        return dataForSend;
+    }
 
     function setHeaders (xhr, headers) {
         var resultHeaders = {},
@@ -14,7 +84,7 @@
             header = defaultHeadersKeys[i];
             resultHeaders[header.toLowerCase()] = XHR.defaults.headers[header];
         }
-        if (typeof headers === 'object') {
+        if (headers && typeof headers === 'object') {
             userHeadersKeys = Object.keys(headers);
             for (i = 0, l = userHeadersKeys.length; i < l; i++) {
                 header = userHeadersKeys[i];
@@ -31,150 +101,165 @@
         }
     }
 
+    function createListener (originalListener, promise, xhr) {
+        return function (e) {
+            if (typeof originalListener === 'string') {
+                return promise.applyCallback(originalListener, e, xhr);
+            } else if (typeof originalListener === 'function') {
+                return originalListener.call(this, e, promise, xhr);
+            }
+        };
+    }
+    
+    function autoParseResponseText (xhr) {
+        var response;
+        try {
+            response = JSON.parse(xhr.responseText);
+        } catch (e) {
+            response = xhr.responseText;
+        }
+        return response;
+    }
+    
+    function makeNextRequestFromConfigObject (configObject, result, xhr) {
+        try {
+            XHR(configObject, result);
+        } catch (e) {
+            result.applyCallback('error', e, xhr);
+        } 
+    }
 
+    function loadEndListener (e, result, xhr) {
+        result.applyCallback('loadend', e, xhr);
+        var response = xhr.response;
+        if (xhr.responseType === '' || xhr.responseType === 'text') {
+            response = autoParseResponseText(xhr);
+        }
+        if (xhr.status >= 200 && xhr.status < 400) {
+            var applyQueue = function (response) {
+                if (result.queue.length) {
+                    var nextRequest = result.getNext();
+                    if (typeof nextRequest === 'function' && !result.xhrCollection.aborted) {
+                        var interceptorResult = result.checkInterceptor('response', xhr),
+                            makeNextRequest = function () {
+                                var configObject = nextRequest(response);
+                                if (configObject) {
+                                    if (configObject instanceof XHRActions) {
+                                        configObject
+                                            .success(function (data) {
+                                                applyQueue(data);
+                                            })
+                                            .error(function (error) {
+                                                applyQueue(error);
+                                            });
+                                    } else {
+                                        makeNextRequestFromConfigObject(configObject, result);
+                                    }
+                                } else {
+                                    result.applyCallback('success', response, xhr);
+                                }
+                            };
+                        if (Promise && interceptorResult instanceof Promise) {
+                            interceptorResult.then(makeNextRequest);
+                        } else if (interceptorResult) {
+                            makeNextRequest();
+                        }
+                    }
+                } else {
+                    result.applyCallback('success', response, xhr);
+                }
+            };
+            applyQueue(response);
+        } else if (xhr.status >= 400 && xhr.status < 600) {
+            result.applyCallback('error', response, xhr);
+        }
+    }
+
+    /**
+     * @param {Object} config
+     * @param {XHRPromise} promise
+     * @returns {XHRActions}
+     */
     function XHR (config, promise) {
         if (!config) {
             throw new Error('Config object is required.');
+        } else if (!config.url) {
+            throw new Error('URL option is required.');
         } else {
             var xhr = new XMLHttpRequest(),
                 result = promise ? promise.addToQueue(xhr) : new XHR.XHRPromise(xhr),
-                queryParams = '',
+                queryParams,
                 async = true,
-                dataForSend = null;
+                dataForSend,
+                events = [
+                    'error',
+                    'timeout',
+                    'progress',
+                    'loadstart',
+                    'load',
+                    'abort',
+                    'readystatechange',
+                    {
+                        type: 'loadend',
+                        listener: loadEndListener
+                    }
+                ];
 
             // setting HTTP method
             config.method = typeof config.method === 'string' ? config.method : XHR.defaults.method;
-
-            // applying attributes to instance of XMLHttpRequest
-            if (typeof config.attributes === 'object' && config.attributes) {
-                var attributes = Object.keys(config.attributes);
-                attributes.forEach(function (attribute) {
-                    xhr[attribute] = config.attributes[attribute];
-                });
-            }
-
-            // setting query params
-            if (typeof config.params === 'object' && config.params) {
-                var params = [],
-                    paramsKeys = Object.keys(config.params);
-                paramsKeys.forEach(function (param) {
-                    var value = config.params[param];
-                    if (Array.isArray(value)) {
-                        value.forEach(function (val) {
-                            params.push(param + '=' + val);
-                        });
-                    } else if (typeof value === 'object' && value) {
-                        params.push(param + '=' + JSON.stringify(value));
-                    } else if (typeof value !== 'undefined') {
-                        params.push(param + '=' + value);
-                    }
-                });
-                if (params.length) {
-                    queryParams = '?' + params.join('&');
-                }
-            }
 
             // setting async
             if (config.async !== undefined) {
                 async = !!config.async;
             }
 
-            // setting data
-            if (config.data !== undefined) {
-                var d = config.data;
-                if (d instanceof (global.ArrayBufferView || global.ArrayBuffer) || d instanceof global.Blob ||
-                    d instanceof global.Document || d instanceof global.FormData) {
-                    dataForSend = d;
-                } else {
-                    if (typeof d === 'object' && d) {
-                        dataForSend = JSON.stringify(d);
-                    } else {
-                        dataForSend = String(d);
-                    }
-                }
-            }
+            // applying attributes to instance of XMLHttpRequest
+            setAttributes(config.attributes, xhr);
 
-            // adding event listeners
-            xhr.addEventListener('error', function (e) {
-                result.applyCallback('error', e, xhr);
+            // setting query params
+            queryParams = setQueryParams(config.params);
+
+            // setting data
+            dataForSend = setData(config.data);
+
+            // event listeners subscription
+            events = events.map(function (listenerData) {
+                var type = listenerData instanceof Object ? listenerData.type : listenerData,
+                    listener = listenerData instanceof Object ? listenerData.listener : listenerData,
+                    _listener = createListener(listener, result, xhr);
+                xhr.addEventListener(type, _listener);
+                return {
+                    type: type,
+                    listener: _listener
+                };
             });
-            xhr.addEventListener('timeout', function (e) {
-                result.applyCallback('timeout', e, xhr);
+
+            result.addEventListener('destroy', function destroyListener () {
+                result.removeEventListener('destroy', destroyListener);
+                events.forEach(function (eventData) {
+                    xhr.removeEventListener(eventData.type, eventData.listener);
+                });
             });
-            xhr.addEventListener('progress', function (e) {
-                result.applyCallback('progress', e, xhr);
-            });
-            xhr.addEventListener('loadstart', function (e) {
-                result.applyCallback('loadstart', e, xhr);
-            });
-            xhr.addEventListener('loadend', function (e) {
-                result.applyCallback('loadend', e, xhr);
-            });
-            xhr.addEventListener('abort', function (e) {
-                result.applyCallback('abort', e, xhr);
-            });
-            xhr.addEventListener('load', function (e) {
-                result.applyCallback('load', e, xhr);
-                var response = xhr.response;
-                if (xhr.responseType === '' || xhr.responseType === 'text') {
-                    try {
-                        response = JSON.parse(xhr.responseText);
-                    } catch (e) {
-                        response = xhr.responseText;
-                    }
-                }
-                if (xhr.status >= 200 && xhr.status < 400) {
-                    var applyQueue = function (response) {
-                        if (result.queue.length) {
-                            var config = result.getNext();
-                            if (typeof config === 'function' && !result.xhrCollection.aborted) {
-                                if (result.checkInterceptor('response', xhr)) {
-                                    var configObject = config(response);
-                                    if (configObject) {
-                                        if (configObject.hasOwnProperty('url')) {
-                                            XHR(configObject, result);
-                                        } else {
-                                            configObject
-                                                .success(function (data) {
-                                                    applyQueue(data);
-                                                })
-                                                .error(function (error) {
-                                                    applyQueue(error);
-                                                });
-                                        }
-                                    } else {
-                                        result.applyCallback('success', response, xhr);
-                                    }
-                                }
-                            }
-                        } else {
-                            result.applyCallback('success', response, xhr);
-                        }
-                    };
-                    applyQueue(response);
-                } else if (xhr.status >= 400 && xhr.status < 600) {
-                    result.applyCallback('error', response, xhr);
-                }
-            }, false);
 
             // waits for opening
-            xhr.onreadystatechange = function () {
+            xhr.addEventListener('readystatechange', function openListener () {
                 if (xhr.readyState === XMLHttpRequest.OPENED) {
-                    xhr.onreadystatechange = null;
+                    xhr.removeEventListener('readystatechange', openListener);
                     // setting default and user headers
                     setHeaders(xhr, config.headers);
                     // sending
-                    setTimeout(function () {
-                        if (xhr.readyState === XMLHttpRequest.OPENED || !result.xhrCollection.aborted) {
-                            xhr.send(dataForSend);
-                        } else {
-                            result.applyCallback('abort');
-                        }
-                    }, 0);
+                    xhr.send(dataForSend);
+                    result.applyCallback('request', dataForSend, xhr);
                 }
-            };
+            });
 
-            xhr.open(config.method, config.url + queryParams, async);
+            setTimeout(function () {
+                if (!result.xhrCollection.aborted) {
+                    xhr.open(config.method, config.url + queryParams, async);
+                } else {
+                    result.applyCallback('abort', null, xhr);
+                }
+            }, 0);
 
             return result.actions;
         }
@@ -196,7 +281,8 @@
     Object.defineProperty(XHR, 'interceptors', {
         value: {
             response: null,
-            responseError: null
+            responseError: null,
+            request: null
         },
         configurable: true,
         writable: true
@@ -204,10 +290,12 @@
 
     global.XHR = XHR;
 
-    if (typeof define === 'function' && define.amd !== null) {
-        define('XHR', [], function () {
-            return XHR;
-        });
-    }
+    XHR.XHRActions = XHRActions;
+    XHR.XHRPromise = XHRPromise;
+    XHR.XHRCollection = XHRCollection;
 
-}(window));
+}(this,
+    /* @include XHRActions.js */,
+    /* @include XHRPromise.js */,
+    /* @include XHRCollection.js */
+));

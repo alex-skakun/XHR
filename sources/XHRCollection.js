@@ -1,10 +1,10 @@
-(function (XHR) {
+(function () {
 
     'use strict';
 
-    function XHRCollection (result) {
+    function XHRCollection (promise) {
         Array.call(this);
-        this.result = result;
+        this.promise = promise;
         this.aborted = false;
     }
 
@@ -19,7 +19,7 @@
                         xhr.abort();
                     } else {
                         clearTimeout(xhr);
-                        this.result.applyCallback('abort');
+                        this.promise.applyCallback('abort');
                     }
                 }, this);
                 this.aborted = true;
@@ -27,10 +27,6 @@
         }
     });
 
-    XHR.XHRCollection = XHRCollection;
+    return XHRCollection;
 
-}(XHR));
-
-
-
-
+}())

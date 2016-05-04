@@ -1,74 +1,35 @@
-(function (XHR) {
+(function (global) {
 
     'use strict';
 
+    var Promise = global.Promise;
+    
     var interceptorTypes = {
-        loadstart: 'request',
-        success: 'response',
-        error: 'responseError'
+        'request': 'request',
+        'success': 'response',
+        'error': 'responseError'
     };
 
+    /**
+     * @param {(XMLHttpRequest | Number)} xhr
+     * @constructor XHRPromise
+     * @extends EventTargetExtendable
+     * @property {Boolean}          inProgress
+     * @property {XHRCollection}    XHRCollection
+     * @property {Boolean}          silent
+     * @property {Function[]}       queue
+     * @property {XHRActions}       actions
+     */
     function XHRPromise (xhr) {
-        var _this = this;
         this.inProgress = true;
         this.xhrCollection = new XHR.XHRCollection(this);
-        this.xhrCollection.push(xhr);
+        if (xhr !== undefined) {
+            this.xhrCollection.push(xhr);
+        }
         this.silent = false;
         this.interceptors = {};
         this.queue = [];
-        this.actions = {
-            isInProgress: function isInProgress () {
-                return _this.inProgress;
-            },
-            interceptors: function interceptors (data) {
-                _this.interceptors = data;
-                return _this.actions;
-            },
-            silent: function silent () {
-                _this.silent = true;
-                return _this.actions;
-            },
-            error: function error (callback) {
-                _this.addEventListener('error', callback);
-                return _this.actions;
-            },
-            loadStart: function loadStart (callback) {
-                _this.addEventListener('loadstart', callback);
-                return _this.actions;
-            },
-            progress: function progress (callback) {
-                _this.addEventListener('progress', callback);
-                return _this.actions;
-            },
-            loadEnd: function loadEnd (callback) {
-                _this.addEventListener('loadend', callback);
-                return _this.actions;
-            },
-            abort: function abort (callback) {
-                _this.addEventListener('abort', callback);
-                return _this.actions;
-            },
-            load: function load (callback) {
-                _this.addEventListener('load', callback);
-                return _this.actions;
-            },
-            success: function success (callback) {
-                _this.addEventListener('success', callback);
-                return _this.actions;
-            },
-            timeout: function timeout (callback) {
-                _this.addEventListener('timeout', callback);
-                return _this.actions;
-            },
-            then: function (callback) {
-                _this.queue.push(callback);
-                return _this.actions;
-            },
-            getXHR: function getXHR () {
-                return _this.xhrCollection;
-            }
-        };
-
+        this.actions = new XHR.XHRActions(this);
     }
 
     XHRPromise.prototype = Object.create(EventTargetExtendable.prototype, {
@@ -76,37 +37,70 @@
             value: XHRPromise
         }
     });
+    
+    XHRPromise.prototype.destroy = function destroy () {
+        this.dispatchEvent('destroy');
+        this.inProgress = false;
+        this.removeAllListeners();
+    };
 
+    /**
+     * Executes specified callback
+     * @param {String} callbackName
+     * @param {*} data
+     * @param {XMLHttpRequest} xhr
+     */
     XHRPromise.prototype.applyCallback = function applyCallback (callbackName, data, xhr) {
-        var _this = this;
-        if (this.checkInterceptor(interceptorTypes[callbackName], xhr)) {
-            var ownInterceptorResult = this.applyOwnInterceptor(interceptorTypes[callbackName], data),
-                continueToCallback = function (interceptorResult) {
-                    _this.dispatchEvent(callbackName, interceptorResult, xhr);
-                    if (callbackName === 'success' || callbackName === 'error' || callbackName === 'abort' || callbackName === 'timeout') {
-                        _this.inProgress = false;
-                        _this.removeAllListeners();
-                    }
-                };
-            if (ownInterceptorResult instanceof Promise) {
-                ownInterceptorResult
-                    .then(continueToCallback)
-                    .catch(function (err) {
-                        _this.applyCallback('error', err, xhr);
-                    });
+        var _this = this,
+            globalInterceptorResult = this.checkInterceptor(interceptorTypes[callbackName], xhr),
+            interceptorResolved = function () {
+                var ownInterceptorResult = _this.applyOwnInterceptor(interceptorTypes[callbackName], data),
+                    continueToCallback = function (interceptorResult) {
+                        _this.dispatchEvent(callbackName, interceptorResult, xhr);
+                        if (callbackName === 'success' || callbackName === 'error' || callbackName === 'abort' || callbackName === 'timeout') {
+                            _this.destroy();
+                        }
+                    };
+                if (Promise && ownInterceptorResult instanceof Promise) {
+                    ownInterceptorResult.then(continueToCallback, interceptorRejected);
+                } else {
+                    continueToCallback(ownInterceptorResult);
+                }
+            },
+            interceptorRejected = function () {
+                _this.destroy();
+            };
+        
+        if (Promise && globalInterceptorResult instanceof Promise) {
+            globalInterceptorResult.then(interceptorResolved, interceptorRejected);
+        } else {
+            if (globalInterceptorResult) {
+                interceptorResolved();
             } else {
-                continueToCallback(ownInterceptorResult);
+                _this.destroy();
             }
         }
     };
 
+    /**
+     * Makes a check of global interceptor
+     * @param {String} interceptorName
+     * @param {XMLHttpRequest} xhr
+     * @returns {(Boolean | Promise)}
+     */
     XHRPromise.prototype.checkInterceptor = function checkInterceptor (interceptorName, xhr) {
         if (interceptorName && typeof XHR.interceptors[interceptorName] === 'function') {
-            return XHR.interceptors[interceptorName](xhr, this.silent) || this.silent;
+            return this.silent || XHR.interceptors[interceptorName](xhr);
         }
         return true;
     };
 
+    /**
+     * Executes an interceptor for data
+     * @param {String} interceptorName
+     * @param {Object} data
+     * @returns {(* | Promise)}
+     */
     XHRPromise.prototype.applyOwnInterceptor = function applyOwnInterceptor (interceptorName, data) {
         var interceptor = this.interceptors[interceptorName];
         if (typeof interceptor === 'function') {
@@ -116,15 +110,32 @@
         }
     };
 
+    /**
+     * Returns next function from requests queue
+     * @returns {Function}
+     */
     XHRPromise.prototype.getNext = function getNext () {
         return this.queue.shift();
     };
 
+    /**
+     * @param {(XMLHttpRequest | Number)} xhr
+     * @returns {XHRPromise}
+     */
     XHRPromise.prototype.addToQueue = function addToQueue (xhr) {
-        this.xhrCollection.push(xhr);
+        if (xhr instanceof XHR.XHRCollection) {
+            var collection = this.xhrCollection,
+                startItem = collection.length,
+                args = xhr.slice();
+            args.unshift(0);
+            args.unshift(startItem);
+            collection.splice.apply(collection, args);
+        } else {
+            this.xhrCollection.push(xhr);
+        }
         return this;
     };
 
-    XHR.XHRPromise = XHRPromise;
+    return XHRPromise;
 
-}(window.XHR));
+}(this))

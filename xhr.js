@@ -225,9 +225,78 @@
     }())
 ));
 
-(function (global) {
+(function (global, XHRActions, XHRPromise, XHRCollection) {
 
     'use strict';
+
+    var Promise = global.Promise;
+
+    function setAttributes (_attributes, xhr) {
+        var resultAttributes = {},
+            defaultAttributes = Object.keys(XHR.defaults.attributes),
+            attr,
+            attributesNames,
+            i, l;
+        for (i = 0, l = defaultAttributes.length; i < l; i++) {
+            attr = defaultAttributes[i];
+            resultAttributes[attr] = XHR.defaults.attributes[attr];
+        }
+        if (_attributes && typeof _attributes === 'object') {
+            var userAttributes = Object.keys(_attributes);
+            for (i = 0, l = userAttributes.length; i < l; i++) {
+                attr = userAttributes[i];
+                resultAttributes[attr] = _attributes[attr];
+                xhr[attr] = _attributes[attr];
+            }
+        }
+        attributesNames = Object.keys(resultAttributes);
+        for (i = 0, l = attributesNames.length; i < l; i++) {
+            attr = attributesNames[i];
+            xhr[attr] = resultAttributes[attr];
+        }
+    }
+
+    function setQueryParams (_params) {
+        var queryParams = '';
+        if (_params && typeof _params === 'object') {
+            var params = [],
+                paramsKeys = Object.keys(_params);
+            paramsKeys.forEach(function (param) {
+                var value = _params[param];
+                if (Array.isArray(value)) {
+                    value.forEach(function (val) {
+                        params.push(param + '=' + val);
+                    });
+                } else if (typeof value === 'object' && value) {
+                    params.push(param + '=' + JSON.stringify(value));
+                } else if (typeof value !== 'undefined') {
+                    params.push(param + '=' + value);
+                }
+            });
+            if (params.length) {
+                queryParams = '?' + params.join('&');
+            }
+        }
+        return queryParams;
+    }
+
+    function setData (data) {
+        var dataForSend = null;
+        if (data !== undefined) {
+            var d = data;
+            if (d instanceof (global.ArrayBufferView || global.ArrayBuffer) || d instanceof global.Blob ||
+                d instanceof global.Document || d instanceof global.FormData) {
+                dataForSend = d;
+            } else {
+                if (typeof d === 'object' && d) {
+                    dataForSend = JSON.stringify(d);
+                } else {
+                    dataForSend = String(d);
+                }
+            }
+        }
+        return dataForSend;
+    }
 
     function setHeaders (xhr, headers) {
         var resultHeaders = {},
@@ -241,7 +310,7 @@
             header = defaultHeadersKeys[i];
             resultHeaders[header.toLowerCase()] = XHR.defaults.headers[header];
         }
-        if (typeof headers === 'object') {
+        if (headers && typeof headers === 'object') {
             userHeadersKeys = Object.keys(headers);
             for (i = 0, l = userHeadersKeys.length; i < l; i++) {
                 header = userHeadersKeys[i];
@@ -258,150 +327,165 @@
         }
     }
 
+    function createListener (originalListener, promise, xhr) {
+        return function (e) {
+            if (typeof originalListener === 'string') {
+                return promise.applyCallback(originalListener, e, xhr);
+            } else if (typeof originalListener === 'function') {
+                return originalListener.call(this, e, promise, xhr);
+            }
+        };
+    }
+    
+    function autoParseResponseText (xhr) {
+        var response;
+        try {
+            response = JSON.parse(xhr.responseText);
+        } catch (e) {
+            response = xhr.responseText;
+        }
+        return response;
+    }
+    
+    function makeNextRequestFromConfigObject (configObject, result, xhr) {
+        try {
+            XHR(configObject, result);
+        } catch (e) {
+            result.applyCallback('error', e, xhr);
+        } 
+    }
 
+    function loadEndListener (e, result, xhr) {
+        result.applyCallback('loadend', e, xhr);
+        var response = xhr.response;
+        if (xhr.responseType === '' || xhr.responseType === 'text') {
+            response = autoParseResponseText(xhr);
+        }
+        if (xhr.status >= 200 && xhr.status < 400) {
+            var applyQueue = function (response) {
+                if (result.queue.length) {
+                    var nextRequest = result.getNext();
+                    if (typeof nextRequest === 'function' && !result.xhrCollection.aborted) {
+                        var interceptorResult = result.checkInterceptor('response', xhr),
+                            makeNextRequest = function () {
+                                var configObject = nextRequest(response);
+                                if (configObject) {
+                                    if (configObject instanceof XHRActions) {
+                                        configObject
+                                            .success(function (data) {
+                                                applyQueue(data);
+                                            })
+                                            .error(function (error) {
+                                                applyQueue(error);
+                                            });
+                                    } else {
+                                        makeNextRequestFromConfigObject(configObject, result);
+                                    }
+                                } else {
+                                    result.applyCallback('success', response, xhr);
+                                }
+                            };
+                        if (Promise && interceptorResult instanceof Promise) {
+                            interceptorResult.then(makeNextRequest);
+                        } else if (interceptorResult) {
+                            makeNextRequest();
+                        }
+                    }
+                } else {
+                    result.applyCallback('success', response, xhr);
+                }
+            };
+            applyQueue(response);
+        } else if (xhr.status >= 400 && xhr.status < 600) {
+            result.applyCallback('error', response, xhr);
+        }
+    }
+
+    /**
+     * @param {Object} config
+     * @param {XHRPromise} promise
+     * @returns {XHRActions}
+     */
     function XHR (config, promise) {
         if (!config) {
             throw new Error('Config object is required.');
+        } else if (!config.url) {
+            throw new Error('URL option is required.');
         } else {
             var xhr = new XMLHttpRequest(),
                 result = promise ? promise.addToQueue(xhr) : new XHR.XHRPromise(xhr),
-                queryParams = '',
+                queryParams,
                 async = true,
-                dataForSend = null;
+                dataForSend,
+                events = [
+                    'error',
+                    'timeout',
+                    'progress',
+                    'loadstart',
+                    'load',
+                    'abort',
+                    'readystatechange',
+                    {
+                        type: 'loadend',
+                        listener: loadEndListener
+                    }
+                ];
 
             // setting HTTP method
             config.method = typeof config.method === 'string' ? config.method : XHR.defaults.method;
-
-            // applying attributes to instance of XMLHttpRequest
-            if (typeof config.attributes === 'object' && config.attributes) {
-                var attributes = Object.keys(config.attributes);
-                attributes.forEach(function (attribute) {
-                    xhr[attribute] = config.attributes[attribute];
-                });
-            }
-
-            // setting query params
-            if (typeof config.params === 'object' && config.params) {
-                var params = [],
-                    paramsKeys = Object.keys(config.params);
-                paramsKeys.forEach(function (param) {
-                    var value = config.params[param];
-                    if (Array.isArray(value)) {
-                        value.forEach(function (val) {
-                            params.push(param + '=' + val);
-                        });
-                    } else if (typeof value === 'object' && value) {
-                        params.push(param + '=' + JSON.stringify(value));
-                    } else if (typeof value !== 'undefined') {
-                        params.push(param + '=' + value);
-                    }
-                });
-                if (params.length) {
-                    queryParams = '?' + params.join('&');
-                }
-            }
 
             // setting async
             if (config.async !== undefined) {
                 async = !!config.async;
             }
 
-            // setting data
-            if (config.data !== undefined) {
-                var d = config.data;
-                if (d instanceof (global.ArrayBufferView || global.ArrayBuffer) || d instanceof global.Blob ||
-                    d instanceof global.Document || d instanceof global.FormData) {
-                    dataForSend = d;
-                } else {
-                    if (typeof d === 'object' && d) {
-                        dataForSend = JSON.stringify(d);
-                    } else {
-                        dataForSend = String(d);
-                    }
-                }
-            }
+            // applying attributes to instance of XMLHttpRequest
+            setAttributes(config.attributes, xhr);
 
-            // adding event listeners
-            xhr.addEventListener('error', function (e) {
-                result.applyCallback('error', e, xhr);
+            // setting query params
+            queryParams = setQueryParams(config.params);
+
+            // setting data
+            dataForSend = setData(config.data);
+
+            // event listeners subscription
+            events = events.map(function (listenerData) {
+                var type = listenerData instanceof Object ? listenerData.type : listenerData,
+                    listener = listenerData instanceof Object ? listenerData.listener : listenerData,
+                    _listener = createListener(listener, result, xhr);
+                xhr.addEventListener(type, _listener);
+                return {
+                    type: type,
+                    listener: _listener
+                };
             });
-            xhr.addEventListener('timeout', function (e) {
-                result.applyCallback('timeout', e, xhr);
+
+            result.addEventListener('destroy', function destroyListener () {
+                result.removeEventListener('destroy', destroyListener);
+                events.forEach(function (eventData) {
+                    xhr.removeEventListener(eventData.type, eventData.listener);
+                });
             });
-            xhr.addEventListener('progress', function (e) {
-                result.applyCallback('progress', e, xhr);
-            });
-            xhr.addEventListener('loadstart', function (e) {
-                result.applyCallback('loadstart', e, xhr);
-            });
-            xhr.addEventListener('loadend', function (e) {
-                result.applyCallback('loadend', e, xhr);
-            });
-            xhr.addEventListener('abort', function (e) {
-                result.applyCallback('abort', e, xhr);
-            });
-            xhr.addEventListener('load', function (e) {
-                result.applyCallback('load', e, xhr);
-                var response = xhr.response;
-                if (xhr.responseType === '' || xhr.responseType === 'text') {
-                    try {
-                        response = JSON.parse(xhr.responseText);
-                    } catch (e) {
-                        response = xhr.responseText;
-                    }
-                }
-                if (xhr.status >= 200 && xhr.status < 400) {
-                    var applyQueue = function (response) {
-                        if (result.queue.length) {
-                            var config = result.getNext();
-                            if (typeof config === 'function' && !result.xhrCollection.aborted) {
-                                if (result.checkInterceptor('response', xhr)) {
-                                    var configObject = config(response);
-                                    if (configObject) {
-                                        if (configObject.hasOwnProperty('url')) {
-                                            XHR(configObject, result);
-                                        } else {
-                                            configObject
-                                                .success(function (data) {
-                                                    applyQueue(data);
-                                                })
-                                                .error(function (error) {
-                                                    applyQueue(error);
-                                                });
-                                        }
-                                    } else {
-                                        result.applyCallback('success', response, xhr);
-                                    }
-                                }
-                            }
-                        } else {
-                            result.applyCallback('success', response, xhr);
-                        }
-                    };
-                    applyQueue(response);
-                } else if (xhr.status >= 400 && xhr.status < 600) {
-                    result.applyCallback('error', response, xhr);
-                }
-            }, false);
 
             // waits for opening
-            xhr.onreadystatechange = function () {
+            xhr.addEventListener('readystatechange', function openListener () {
                 if (xhr.readyState === XMLHttpRequest.OPENED) {
-                    xhr.onreadystatechange = null;
+                    xhr.removeEventListener('readystatechange', openListener);
                     // setting default and user headers
                     setHeaders(xhr, config.headers);
                     // sending
-                    setTimeout(function () {
-                        if (xhr.readyState === XMLHttpRequest.OPENED || !result.xhrCollection.aborted) {
-                            xhr.send(dataForSend);
-                        } else {
-                            result.applyCallback('abort');
-                        }
-                    }, 0);
+                    xhr.send(dataForSend);
+                    result.applyCallback('request', dataForSend, xhr);
                 }
-            };
+            });
 
-            xhr.open(config.method, config.url + queryParams, async);
+            setTimeout(function () {
+                if (!result.xhrCollection.aborted) {
+                    xhr.open(config.method, config.url + queryParams, async);
+                } else {
+                    result.applyCallback('abort', null, xhr);
+                }
+            }, 0);
 
             return result.actions;
         }
@@ -423,7 +507,8 @@
     Object.defineProperty(XHR, 'interceptors', {
         value: {
             response: null,
-            responseError: null
+            responseError: null,
+            request: null
         },
         configurable: true,
         writable: true
@@ -431,178 +516,252 @@
 
     global.XHR = XHR;
 
-    if (typeof define === 'function' && define.amd !== null) {
-        define('XHR', [], function () {
-            return XHR;
-        });
-    }
-
-}(window));
-
-(function (XHR) {
-
-    'use strict';
-
-    var interceptorTypes = {
-        loadstart: 'request',
-        success: 'response',
-        error: 'responseError'
-    };
-
-    function XHRPromise (xhr) {
-        var _this = this;
-        this.inProgress = true;
-        this.xhrCollection = new XHR.XHRCollection(this);
-        this.xhrCollection.push(xhr);
-        this.silent = false;
-        this.interceptors = {};
-        this.queue = [];
-        this.actions = {
-            isInProgress: function isInProgress () {
-                return _this.inProgress;
-            },
-            interceptors: function interceptors (data) {
-                _this.interceptors = data;
-                return _this.actions;
-            },
-            silent: function silent () {
-                _this.silent = true;
-                return _this.actions;
-            },
-            error: function error (callback) {
-                _this.addEventListener('error', callback);
-                return _this.actions;
-            },
-            loadStart: function loadStart (callback) {
-                _this.addEventListener('loadstart', callback);
-                return _this.actions;
-            },
-            progress: function progress (callback) {
-                _this.addEventListener('progress', callback);
-                return _this.actions;
-            },
-            loadEnd: function loadEnd (callback) {
-                _this.addEventListener('loadend', callback);
-                return _this.actions;
-            },
-            abort: function abort (callback) {
-                _this.addEventListener('abort', callback);
-                return _this.actions;
-            },
-            load: function load (callback) {
-                _this.addEventListener('load', callback);
-                return _this.actions;
-            },
-            success: function success (callback) {
-                _this.addEventListener('success', callback);
-                return _this.actions;
-            },
-            timeout: function timeout (callback) {
-                _this.addEventListener('timeout', callback);
-                return _this.actions;
-            },
-            then: function (callback) {
-                _this.queue.push(callback);
-                return _this.actions;
-            },
-            getXHR: function getXHR () {
-                return _this.xhrCollection;
-            }
-        };
-
-    }
-
-    XHRPromise.prototype = Object.create(EventTargetExtendable.prototype, {
-        constructor: {
-            value: XHRPromise
-        }
-    });
-
-    XHRPromise.prototype.applyCallback = function applyCallback (callbackName, data, xhr) {
-        var _this = this;
-        if (this.checkInterceptor(interceptorTypes[callbackName], xhr)) {
-            var ownInterceptorResult = this.applyOwnInterceptor(interceptorTypes[callbackName], data),
-                continueToCallback = function (interceptorResult) {
-                    _this.dispatchEvent(callbackName, interceptorResult, xhr);
-                    if (callbackName === 'success' || callbackName === 'error' || callbackName === 'abort' || callbackName === 'timeout') {
-                        _this.inProgress = false;
-                        _this.removeAllListeners();
-                    }
-                };
-            if (ownInterceptorResult instanceof Promise) {
-                ownInterceptorResult
-                    .then(continueToCallback)
-                    .catch(function (err) {
-                        _this.applyCallback('error', err, xhr);
-                    });
-            } else {
-                continueToCallback(ownInterceptorResult);
-            }
-        }
-    };
-
-    XHRPromise.prototype.checkInterceptor = function checkInterceptor (interceptorName, xhr) {
-        if (interceptorName && typeof XHR.interceptors[interceptorName] === 'function') {
-            return XHR.interceptors[interceptorName](xhr, this.silent) || this.silent;
-        }
-        return true;
-    };
-
-    XHRPromise.prototype.applyOwnInterceptor = function applyOwnInterceptor (interceptorName, data) {
-        var interceptor = this.interceptors[interceptorName];
-        if (typeof interceptor === 'function') {
-            return interceptor(data);
-        } else {
-            return data;
-        }
-    };
-
-    XHRPromise.prototype.getNext = function getNext () {
-        return this.queue.shift();
-    };
-
-    XHRPromise.prototype.addToQueue = function addToQueue (xhr) {
-        this.xhrCollection.push(xhr);
-        return this;
-    };
-
+    XHR.XHRActions = XHRActions;
     XHR.XHRPromise = XHRPromise;
-
-}(window.XHR));
-
-(function (XHR) {
-
-    'use strict';
-
-    function XHRCollection (result) {
-        Array.call(this);
-        this.result = result;
-        this.aborted = false;
-    }
-
-    XHRCollection.prototype = Object.create(Array.prototype, {
-        constructor: {
-            value: XHRCollection
-        },
-        abort: {
-            value: function abort () {
-                this.forEach(function (xhr) {
-                    if (xhr instanceof XMLHttpRequest) {
-                        xhr.abort();
-                    } else {
-                        clearTimeout(xhr);
-                        this.result.applyCallback('abort');
-                    }
-                }, this);
-                this.aborted = true;
-            }
-        }
-    });
-
     XHR.XHRCollection = XHRCollection;
 
-}(XHR));
-
-
-
-
+}(this,
+    (function () {
+    
+        'use strict';
+    
+        /**
+         * @param {XHRPromise} xhrPromise
+         * @constructor XHRActions
+         */
+        function XHRActions (xhrPromise) {
+            this._promise = xhrPromise;
+        }
+    
+        XHRActions.prototype.isInProgress = function isInProgress () {
+            return this._promise.inProgress;
+        };
+        XHRActions.prototype.interceptors = function interceptors (data) {
+            this._promise.interceptors = data;
+            return this;
+        };
+        XHRActions.prototype.silent = function silent () {
+            this._promise.silent = true;
+            return this;
+        };
+        XHRActions.prototype.error = function error (callback) {
+            this._promise.addEventListener('error', callback);
+            return this;
+        };
+        XHRActions.prototype.loadStart = function loadStart (callback) {
+            this._promise.addEventListener('loadstart', callback);
+            return this;
+        };
+        XHRActions.prototype.progress = function progress (callback) {
+            this._promise.addEventListener('progress', callback);
+            return this;
+        };
+        XHRActions.prototype.loadEnd = function loadEnd (callback) {
+            this._promise.addEventListener('loadend', callback);
+            return this;
+        };
+        XHRActions.prototype.abort = function abort (callback) {
+            this._promise.addEventListener('abort', callback);
+            return this;
+        };
+        XHRActions.prototype.load = function load (callback) {
+            this._promise.addEventListener('load', callback);
+            return this;
+        };
+        XHRActions.prototype.success = function success (callback) {
+            this._promise.addEventListener('success', callback);
+            return this;
+        };
+        XHRActions.prototype.timeout = function timeout (callback) {
+            this._promise.addEventListener('timeout', callback);
+            return this;
+        };
+        XHRActions.prototype.readyStateChange = function readyStateChange (callback) {
+            this._promise.addEventListener('readystatechange', callback);
+            return this;
+        };
+        XHRActions.prototype.then = function (callback) {
+            this._promise.queue.push(callback);
+            return this;
+        };
+        XHRActions.prototype.getXHR = function getXHR () {
+            return this._promise.xhrCollection;
+        };
+    
+        return XHRActions;
+    
+    }()),
+    (function (global) {
+    
+        'use strict';
+    
+        var Promise = global.Promise;
+        
+        var interceptorTypes = {
+            'request': 'request',
+            'success': 'response',
+            'error': 'responseError'
+        };
+    
+        /**
+         * @param {(XMLHttpRequest | Number)} xhr
+         * @constructor XHRPromise
+         * @extends EventTargetExtendable
+         * @property {Boolean}          inProgress
+         * @property {XHRCollection}    XHRCollection
+         * @property {Boolean}          silent
+         * @property {Function[]}       queue
+         * @property {XHRActions}       actions
+         */
+        function XHRPromise (xhr) {
+            this.inProgress = true;
+            this.xhrCollection = new XHR.XHRCollection(this);
+            if (xhr !== undefined) {
+                this.xhrCollection.push(xhr);
+            }
+            this.silent = false;
+            this.interceptors = {};
+            this.queue = [];
+            this.actions = new XHR.XHRActions(this);
+        }
+    
+        XHRPromise.prototype = Object.create(EventTargetExtendable.prototype, {
+            constructor: {
+                value: XHRPromise
+            }
+        });
+        
+        XHRPromise.prototype.destroy = function destroy () {
+            this.dispatchEvent('destroy');
+            this.inProgress = false;
+            this.removeAllListeners();
+        };
+    
+        /**
+         * Executes specified callback
+         * @param {String} callbackName
+         * @param {*} data
+         * @param {XMLHttpRequest} xhr
+         */
+        XHRPromise.prototype.applyCallback = function applyCallback (callbackName, data, xhr) {
+            var _this = this,
+                globalInterceptorResult = this.checkInterceptor(interceptorTypes[callbackName], xhr),
+                interceptorResolved = function () {
+                    var ownInterceptorResult = _this.applyOwnInterceptor(interceptorTypes[callbackName], data),
+                        continueToCallback = function (interceptorResult) {
+                            _this.dispatchEvent(callbackName, interceptorResult, xhr);
+                            if (callbackName === 'success' || callbackName === 'error' || callbackName === 'abort' || callbackName === 'timeout') {
+                                _this.destroy();
+                            }
+                        };
+                    if (Promise && ownInterceptorResult instanceof Promise) {
+                        ownInterceptorResult.then(continueToCallback, interceptorRejected);
+                    } else {
+                        continueToCallback(ownInterceptorResult);
+                    }
+                },
+                interceptorRejected = function () {
+                    _this.destroy();
+                };
+            
+            if (Promise && globalInterceptorResult instanceof Promise) {
+                globalInterceptorResult.then(interceptorResolved, interceptorRejected);
+            } else {
+                if (globalInterceptorResult) {
+                    interceptorResolved();
+                } else {
+                    _this.destroy();
+                }
+            }
+        };
+    
+        /**
+         * Makes a check of global interceptor
+         * @param {String} interceptorName
+         * @param {XMLHttpRequest} xhr
+         * @returns {(Boolean | Promise)}
+         */
+        XHRPromise.prototype.checkInterceptor = function checkInterceptor (interceptorName, xhr) {
+            if (interceptorName && typeof XHR.interceptors[interceptorName] === 'function') {
+                return this.silent || XHR.interceptors[interceptorName](xhr);
+            }
+            return true;
+        };
+    
+        /**
+         * Executes an interceptor for data
+         * @param {String} interceptorName
+         * @param {Object} data
+         * @returns {(* | Promise)}
+         */
+        XHRPromise.prototype.applyOwnInterceptor = function applyOwnInterceptor (interceptorName, data) {
+            var interceptor = this.interceptors[interceptorName];
+            if (typeof interceptor === 'function') {
+                return interceptor(data);
+            } else {
+                return data;
+            }
+        };
+    
+        /**
+         * Returns next function from requests queue
+         * @returns {Function}
+         */
+        XHRPromise.prototype.getNext = function getNext () {
+            return this.queue.shift();
+        };
+    
+        /**
+         * @param {(XMLHttpRequest | Number)} xhr
+         * @returns {XHRPromise}
+         */
+        XHRPromise.prototype.addToQueue = function addToQueue (xhr) {
+            if (xhr instanceof XHR.XHRCollection) {
+                var collection = this.xhrCollection,
+                    startItem = collection.length,
+                    args = xhr.slice();
+                args.unshift(0);
+                args.unshift(startItem);
+                collection.splice.apply(collection, args);
+            } else {
+                this.xhrCollection.push(xhr);
+            }
+            return this;
+        };
+    
+        return XHRPromise;
+    
+    }(this)),
+    (function () {
+    
+        'use strict';
+    
+        function XHRCollection (promise) {
+            Array.call(this);
+            this.promise = promise;
+            this.aborted = false;
+        }
+    
+        XHRCollection.prototype = Object.create(Array.prototype, {
+            constructor: {
+                value: XHRCollection
+            },
+            abort: {
+                value: function abort () {
+                    this.forEach(function (xhr) {
+                        if (xhr instanceof XMLHttpRequest) {
+                            xhr.abort();
+                        } else {
+                            clearTimeout(xhr);
+                            this.promise.applyCallback('abort');
+                        }
+                    }, this);
+                    this.aborted = true;
+                }
+            }
+        });
+    
+        return XHRCollection;
+    
+    }())
+));

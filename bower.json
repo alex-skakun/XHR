@@ -1,13 +1,9 @@
 {
   "name": "XHR",
-  "version": "1.6.1",
+  "version": "2.0.0",
   "main": [
     "xhr.js",
     "xhr.min.js"
-  ],
-  "ignore": [
-    "node_modules",
-    "Gruntfile.js"
   ],
   "homepage": "https://github.com/alex-skakun/XHR",
   "repository": {
@@ -25,7 +21,16 @@
     "json"
   ],
   "license": "MIT",
-  "dependencies": {
-    "EventTargetExtendable": "https://github.com/alex-skakun/EventTargetExtendable.git#~1.1.0"
-  }
+  "devDependencies": {
+    "EventTargetExtendable": "~1.2.0"
+  },
+  "ignore": [
+    "**/.*",
+    ".idea",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "gulpFile.js"
+  ]
 }
