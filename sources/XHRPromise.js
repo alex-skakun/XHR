@@ -7,7 +7,8 @@
     var interceptorTypes = {
         'request': 'request',
         'success': 'response',
-        'error': 'responseError'
+        'error': 'responseError',
+        'abort': 'abort'
     };
 
     /**
