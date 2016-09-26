@@ -2,6 +2,11 @@
 
     'use strict';
 
+    /**
+     * @extends {Array}
+     * @param promise
+     * @constructor XHRCollection
+     */
     function XHRCollection (promise) {
         Array.call(this);
         this.promise = promise;
@@ -15,7 +20,7 @@
         abort: {
             value: function abort () {
                 this.forEach(function (xhr) {
-                    if (xhr instanceof XMLHttpRequest) {
+                    if (xhr instanceof XMLHttpRequest || xhr instanceof XHRWorker) {
                         xhr.abort();
                     } else {
                         clearTimeout(xhr);

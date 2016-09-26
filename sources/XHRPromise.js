@@ -3,13 +3,24 @@
     'use strict';
 
     var Promise = global.Promise;
-    
+
     var interceptorTypes = {
         'request': 'request',
         'success': 'response',
         'error': 'responseError',
         'abort': 'abort'
     };
+
+    function getXHROptions (xhr) {
+        var type = xhr.responseType;
+        return {
+            readyState: xhr.readyState,
+            response: xhr.response,
+            responseText: type === '' || type === 'text' ? xhr.responseText : null,
+            status: xhr.status,
+            statusText: xhr.statusText
+        };
+    }
 
     /**
      * @param {(XMLHttpRequest | Number)} xhr
@@ -23,14 +34,14 @@
      */
     function XHRPromise (xhr) {
         this.inProgress = true;
-        this.xhrCollection = new XHR.XHRCollection(this);
+        this.xhrCollection = new XHRCollection(this);
         if (xhr !== undefined) {
             this.xhrCollection.push(xhr);
         }
         this.silent = false;
         this.interceptors = {};
         this.queue = [];
-        this.actions = new XHR.XHRActions(this);
+        this.actions = new XHRActions(this);
     }
 
     XHRPromise.prototype = Object.create(EventTargetExtendable.prototype, {
@@ -38,11 +49,67 @@
             value: XHRPromise
         }
     });
-    
+
     XHRPromise.prototype.destroy = function destroy () {
         this.dispatchEvent('destroy');
+        if (XHR.workerMode) {
+            this.sendMessageToMainThread('destroy');
+        }
         this.inProgress = false;
         this.removeAllListeners();
+    };
+
+    function getPrototypes (obj) {
+        var prototypes = [],
+            proto = Object.getPrototypeOf(obj);
+        while (proto) {
+            prototypes.push(proto);
+            proto = Object.getPrototypeOf(proto.constructor.prototype);
+        }
+        return prototypes;
+    }
+
+    function copyObject (data) {
+        var copy = {},
+            properties = getPrototypes(data).reverse()
+                .map(function (proto) {
+                    return Object.getOwnPropertyNames(proto)
+                        .map(function (property) {
+                            return {
+                                property: property,
+                                proto: proto
+                            };
+                        });
+                })
+                .reduce(function (a, b) {
+                    return a.concat(b);
+                }, []);
+        if (Array.isArray(properties)) {
+            properties.forEach(function (item) {
+                var descriptor = Object.getOwnPropertyDescriptor(item.proto, item.property),
+                    value = data[item.property];
+                if (typeof descriptor.get === 'function' && !(value instanceof Object)) {
+                    copy[item.property] = value;
+                }
+            });
+        }
+
+        return copy;
+    }
+
+    XHRPromise.prototype.sendMessageToMainThread = function sendMessageToMainThread (callbackName, data, xhr) {
+        var message = {
+            guid: this.guid,
+            eventName: callbackName,
+            data: data,
+            xhrOptions: xhr ? getXHROptions(xhr) : null
+        };
+        try {
+            global.postMessage(message);
+        } catch (e) {
+            message.data = copyObject(data);
+            global.postMessage(message);
+        }
     };
 
     /**
@@ -57,8 +124,13 @@
             interceptorResolved = function () {
                 var ownInterceptorResult = _this.applyOwnInterceptor(interceptorTypes[callbackName], data),
                     continueToCallback = function (interceptorResult) {
-                        _this.dispatchEvent(callbackName, interceptorResult, xhr);
-                        if (callbackName === 'success' || callbackName === 'error' || callbackName === 'abort' || callbackName === 'timeout') {
+                        if (XHR.workerMode) {
+                            _this.sendMessageToMainThread(callbackName, interceptorResult, xhr);
+                        } else {
+                            _this.dispatchEvent(callbackName, interceptorResult, xhr);
+                        }
+                        if (callbackName === 'success' || callbackName === 'error' || callbackName === 'abort' ||
+                            callbackName === 'timeout') {
                             _this.destroy();
                         }
                     };
@@ -71,7 +143,7 @@
             interceptorRejected = function () {
                 _this.destroy();
             };
-        
+
         if (Promise && globalInterceptorResult instanceof Promise) {
             globalInterceptorResult.then(interceptorResolved, interceptorRejected);
         } else {
@@ -124,7 +196,7 @@
      * @returns {XHRPromise}
      */
     XHRPromise.prototype.addToQueue = function addToQueue (xhr) {
-        if (xhr instanceof XHR.XHRCollection) {
+        if (xhr instanceof XHRCollection) {
             var collection = this.xhrCollection,
                 startItem = collection.length,
                 args = xhr.slice();

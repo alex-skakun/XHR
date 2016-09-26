@@ -67,10 +67,14 @@
                     var type = mime.lookup(someFileName);
                     if (!exists) {
                         corsHeaders(res, req);
-                        res.writeHead(404, {
-                            "Content-Type": 'text/plain'
-                        });
-                        res.write('404 Nothing Here\n');
+                        if (req.method === 'OPTIONS') {
+                            res.writeHead(200);
+                        } else {
+                            res.writeHead(404, {
+                                "Content-Type": 'text/plain'
+                            });
+                            res.write('404 Nothing Here\n');
+                        }
                         res.end();
                         endTime = Date.now();
                         console.log('Response time: ' + ((endTime - startTime) / 1000) + ' sec');

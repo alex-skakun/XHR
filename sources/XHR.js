@@ -1,5 +1,4 @@
-/* @include ../bower_components/EventTargetExtendable/dist/ete.js */
-(function (global, XHRActions, XHRPromise, XHRCollection) {
+(function (global) {
 
     'use strict';
 
@@ -56,10 +55,10 @@
 
     function setData (data) {
         var dataForSend = null;
-        if (data !== undefined) {
+        if (data !== undefined && data !== null) {
             var d = data;
             if (d instanceof (global.ArrayBufferView || global.ArrayBuffer) || d instanceof global.Blob ||
-                d instanceof global.Document || d instanceof global.FormData) {
+                (!XHR.workerMode ? d instanceof global.Document : false) || d instanceof global.FormData) {
                 dataForSend = d;
             } else {
                 if (typeof d === 'object' && d) {
@@ -177,7 +176,7 @@
 
     /**
      * @param {Object} config
-     * @param {XHRPromise} promise
+     * @param {XHRPromise} [promise]
      * @returns {XHRActions}
      */
     function XHR (config, promise) {
@@ -186,8 +185,8 @@
         } else if (!config.url) {
             throw new Error('URL option is required.');
         } else {
-            var xhr = new XMLHttpRequest(),
-                result = promise ? promise.addToQueue(xhr) : new XHR.XHRPromise(xhr),
+            var xhr = this instanceof XHRWorker ? this : new XMLHttpRequest(),
+                result = promise ? promise.addToQueue(xhr) : new XHRPromise(xhr),
                 queryParams,
                 async = true,
                 dataForSend,
@@ -222,17 +221,23 @@
             // setting data
             dataForSend = setData(config.data);
 
-            // event listeners subscription
-            events = events.map(function (listenerData) {
-                var type = listenerData instanceof Object ? listenerData.type : listenerData,
-                    listener = listenerData instanceof Object ? listenerData.listener : listenerData,
-                    _listener = createListener(listener, result, xhr);
-                xhr.addEventListener(type, _listener);
-                return {
-                    type: type,
-                    listener: _listener
-                };
-            });
+            if (xhr instanceof XHRWorker) {
+                xhr.addEventListener('event', function (eventName, data, xhr) {
+                    result.applyCallback(eventName, data, xhr);
+                });
+            } else {
+                // event listeners subscription
+                events = events.map(function (listenerData) {
+                    var type = listenerData instanceof Object ? listenerData.type : listenerData,
+                        listener = listenerData instanceof Object ? listenerData.listener : listenerData,
+                        _listener = createListener(listener, result, xhr);
+                    xhr.addEventListener(type, _listener);
+                    return {
+                        type: type,
+                        listener: _listener
+                    };
+                });
+            }
 
             result.addEventListener('destroy', function destroyListener () {
                 result.removeEventListener('destroy', destroyListener);
@@ -265,6 +270,59 @@
         }
     }
 
+    function guid () {
+        function s4() {
+            return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
+        }
+        return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
+    }
+
+    function inWorker (config, promise) {
+        if (!config) {
+            throw new Error('Config object is required.');
+        } else if (!config.url) {
+            throw new Error('URL option is required.');
+        } else {
+            var xhrWorker = new XHRWorker(guid(), config);
+            return XHR.call(xhrWorker, config, promise);
+        }
+    }
+
+    XHR.enableWorker = function () {
+        return new Promise(function (resolve, reject) {
+            if (!XHR.workerMode) {
+                if (XHR._worker) {
+                    resolve();
+                } else {
+                    var libSource = XHRlibContent.toString();
+                    libSource = '(' + libSource + '.call(this));\nthis.postMessage("XHR.active");\n';
+
+                    var scriptBlob = new Blob([libSource], {type: 'application/javascript'}),
+                        url = URL.createObjectURL(scriptBlob);
+
+                    Object.defineProperties(XHR, {
+                        _worker: {
+                            value: new Worker(url)
+                        },
+                        inWorker: {
+                            value: inWorker
+                        }
+                    });
+
+                    XHR._worker.addEventListener('message', function activateListener (event) {
+                        if (event.data === 'XHR.active') {
+                            XHR._worker.removeEventListener('message', activateListener);
+                            resolve();
+                        }
+                    });
+                }
+            } else {
+                reject(new Error('Worker can be enabled only in main thread.'));
+            }
+        });
+       
+    };
+
     Object.defineProperty(XHR, 'defaults', {
         value: {
             method: 'GET',
@@ -288,14 +346,6 @@
         writable: true
     });
 
-    global.XHR = XHR;
+    return XHR;
 
-    XHR.XHRActions = XHRActions;
-    XHR.XHRPromise = XHRPromise;
-    XHR.XHRCollection = XHRCollection;
-
-}(this,
-    /* @include XHRActions.js */,
-    /* @include XHRPromise.js */,
-    /* @include XHRCollection.js */
-));
+}(this))

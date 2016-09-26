@@ -1,22 +1,28 @@
-describe('Simple Requests', function () {
+describe('Requests in worker', function () {
 
     'use strict';
-    
+
     var baseUrl = 'http://localhost:8081/';
 
     var imageBlob;
 
+    beforeAll(function (done) {
+        XHR.enableWorker().then(function () {
+            done();
+        });
+    });
+
     it('Should throw error about config', function () {
-        expect(XHR).toThrow(new Error('Config object is required.'));
+        expect(XHR.inWorker).toThrow(new Error('Config object is required.'));
     });
     it('Should throw error about url', function () {
         expect(function () {
-            XHR({method: 'GET'});
+            XHR.inWorker({method: 'GET'});
         }).toThrow(new Error('URL option is required.'));
     });
 
     it('Should make request', function (done) {
-        XHR({
+        XHR.inWorker({
             url: baseUrl
         })
             .success(function (response) {
@@ -26,7 +32,7 @@ describe('Simple Requests', function () {
     });
 
     it('Should make request with query string params', function (done) {
-        XHR({
+        XHR.inWorker({
             url: baseUrl,
             params: {
                 one: 1,
@@ -46,7 +52,7 @@ describe('Simple Requests', function () {
     });
 
     it('Should make request with response type json', function (done) {
-        XHR({
+        XHR.inWorker({
             url: baseUrl,
             attributes: {
                 responseType: 'json'
@@ -59,7 +65,7 @@ describe('Simple Requests', function () {
     });
 
     it('Should make auto json-parsing with response type text', function (done) {
-        XHR({
+        XHR.inWorker({
             url: baseUrl,
             attributes: {
                 responseType: 'text'
@@ -74,7 +80,7 @@ describe('Simple Requests', function () {
     });
 
     it('Should send user headers', function (done) {
-        XHR({
+        XHR.inWorker({
             url: baseUrl,
             headers: {
                 'my-header': 'test'
@@ -87,7 +93,7 @@ describe('Simple Requests', function () {
     });
 
     it('Should make unsuccessful request with timeout', function (done) {
-        XHR({
+        XHR.inWorker({
             url: baseUrl + 'timeout/4000',
             attributes: {
                 timeout: 3000
@@ -100,8 +106,8 @@ describe('Simple Requests', function () {
     });
 
     it('Should make successful request with timeout', function (done) {
-        XHR({
-            url: baseUrl + 'timeout/3000',
+        XHR.inWorker({
+            url: baseUrl + 'timeout/2000',
             attributes: {
                 timeout: 4000
             }
@@ -113,7 +119,7 @@ describe('Simple Requests', function () {
     });
 
     it('Should abort request', function (done) {
-        var xhrCollection = XHR({
+        var xhrCollection = XHR.inWorker({
             url: baseUrl + 'timeout/3000'
         })
             .abort(function (data) {
@@ -127,7 +133,7 @@ describe('Simple Requests', function () {
     });
 
     it('Should abort request before sending', function (done) {
-        var xhrCollection = XHR({
+        var xhrCollection = XHR.inWorker({
             url: baseUrl + 'timeout/3000'
         })
             .abort(function (data) {
@@ -139,7 +145,7 @@ describe('Simple Requests', function () {
     });
 
     it('Should make request with response type blob', function (done) {
-        XHR({
+        XHR.inWorker({
             url: baseUrl + 'image.png',
             attributes: {
                 responseType: 'blob'
@@ -153,7 +159,7 @@ describe('Simple Requests', function () {
     });
 
     it('Should execute error after 404', function (done) {
-        XHR({
+        XHR.inWorker({
             url: baseUrl + 'notFound.png'
         })
             .error(function (data, xhr) {
@@ -163,7 +169,7 @@ describe('Simple Requests', function () {
     });
 
     it('Should execute error after network error', function (done) {
-        XHR({
+        XHR.inWorker({
             url: baseUrl + 'networkError'
         })
             .error(function (data) {
@@ -180,7 +186,7 @@ describe('Simple Requests', function () {
             readyStateListener = function (e, xhr) {
                 events['readyState' + xhr.readyState] = true;
             };
-        XHR({
+        XHR.inWorker({
             url: baseUrl + 'image.png',
             attributes: {
                 responseType: 'blob'
@@ -204,5 +210,6 @@ describe('Simple Requests', function () {
                 done();
             });
     });
+
 
 });

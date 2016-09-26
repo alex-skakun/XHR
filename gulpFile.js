@@ -10,7 +10,7 @@
         bump = require('gulp-bump');
 
     gulp.task('preprocess', function (done) {
-        gulp.src(['./sources/XHR.js'])
+        gulp.src(['./sources/XHRContainer.js'])
             .pipe(preprocess())
             .pipe(rename('xhr.js'))
             .pipe(gulp.dest('./'))

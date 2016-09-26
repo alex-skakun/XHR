@@ -6,7 +6,8 @@ module.exports = function(config) {
             './tests/unit/SimpleRequests.js',
             './tests/unit/XHRCollection.js',
             './tests/unit/XHRPromise.js',
-            './tests/unit/DefaultsAndGlobals.js'
+            './tests/unit/DefaultsAndGlobals.js',
+            './tests/unit/RequestsInWorker.js'
         ]
     });
 };
