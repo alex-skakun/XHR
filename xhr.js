@@ -1096,6 +1096,7 @@
                 type = data.type,
                 xhrCollection;
             if (type === 'request') {
+                data.options.url = new URL(data.options.url, location.origin);
                 xhrCollection = XHR(data.options).getXHR();
                 xhrCollection.promise.guid = guid;
                 xhrCollection.promise.addEventListener('destroy', function () {
