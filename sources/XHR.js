@@ -58,7 +58,7 @@
         if (data !== undefined && data !== null) {
             var d = data;
             if (d instanceof (global.ArrayBufferView || global.ArrayBuffer) || d instanceof global.Blob ||
-                (!XHR.workerMode ? d instanceof global.Document : false) || d instanceof global.FormData) {
+                (!XHR.workerMode ? d instanceof global.Document : false) || (!XHR.workerMode ? d instanceof global.FormData : false)) {
                 dataForSend = d;
             } else {
                 if (typeof d === 'object' && d) {
