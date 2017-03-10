@@ -2,13 +2,12 @@ module.exports = function(config) {
     config.set({
         frameworks: ['jasmine'],
         files: [
-            './xhr.js',
-            './tests/unit/SimpleRequests.js',
+            './xhr.mock.js',
+            './tests/unit/DefaultsAndGlobals.mock.js',
+            './tests/unit/SimpleRequests.mock.js',
             './tests/unit/XHRCollection.js',
             './tests/unit/XHRPromiseWithOutRequests.js',
-            './tests/unit/XHRPromise.js',
-            './tests/unit/DefaultsAndGlobals.js',
-            './tests/unit/RequestsInWorker.js'
+            './tests/unit/XHRPromise.mock.js'
         ]
     });
 };

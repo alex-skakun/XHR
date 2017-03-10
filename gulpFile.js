@@ -9,15 +9,21 @@
         del = require('del'),
         bump = require('gulp-bump');
 
-    gulp.task('preprocess', function (done) {
-        gulp.src(['./sources/XHRContainer.js'])
-            .pipe(preprocess())
-            .pipe(rename('xhr.js'))
-            .pipe(gulp.dest('./'))
-            .on('end', done)
-    });
+    gulp.task('preprocess', getPreprocessTask(false));
 
-    gulp.task('uglify', ['preprocess'], function () {
+    gulp.task('preprocess-mock', getPreprocessTask(true));
+
+    function getPreprocessTask (mock) {
+        return function (done) {
+            gulp.src(['./sources/XHRContainer.js'])
+                .pipe(preprocess({context: { MOCK: mock}}))
+                .pipe(rename(`xhr${mock ? '.mock' : ''}.js`))
+                .pipe(gulp.dest('./'))
+                .on('end', done);
+        };
+    }
+
+    gulp.task('uglify', ['preprocess', 'preprocess-mock'], function () {
         gulp.src('./xhr.js')
             .pipe(uglify({
                 mangle: {
@@ -54,13 +60,11 @@
 
     gulp.task('build', [
         'clean',
-        'preprocess',
         'uglify'
     ]);
 
     gulp.task('release', [
         'clean',
-        'preprocess',
         'uglify',
         'version'
     ]);
