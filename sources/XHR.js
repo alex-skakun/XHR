@@ -3,6 +3,9 @@
     'use strict';
 
     var Promise = global.Promise;
+    /* @if MOCK **
+    /* @include FakeXMLHttpRequest.js */
+    /* @endif */
 
     function setAttributes (_attributes, xhr) {
         var resultAttributes = {},

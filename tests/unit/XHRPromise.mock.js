@@ -1,4 +1,4 @@
-describe('XHRPromise and XHRActions with requests', function () {
+describe('XHRPromise and XHRActions mock', function () {
 
     'use strict';
 
@@ -6,16 +6,25 @@ describe('XHRPromise and XHRActions with requests', function () {
 
     it('Should make 3 requests with config', function (done) {
         var count = 0;
+        XMLHttpRequest.addRequest({
+            url: baseUrl
+        });
         XHR({
             url: baseUrl
         })
             .then(function () {
                 count++;
+                XMLHttpRequest.addRequest({
+                    url: baseUrl
+                });
                 return {
                     url: baseUrl
                 };
             })
             .then(function () {
+                XMLHttpRequest.addRequest({
+                    url: baseUrl
+                });
                 count++;
                 return {
                     url: baseUrl
@@ -31,6 +40,9 @@ describe('XHRPromise and XHRActions with requests', function () {
     it('Should make 3 requests with method calling', function (done) {
         var count = 0,
             request = function () {
+                XMLHttpRequest.addRequest({
+                    url: baseUrl
+                });
                 return XHR({
                     url: baseUrl
                 });
@@ -54,11 +66,17 @@ describe('XHRPromise and XHRActions with requests', function () {
     it('Should make 3 requests with method calling and applying own interceptors', function (done) {
         var count = 0,
             request = function () {
+                XMLHttpRequest.addRequest({
+                    url: baseUrl
+                });
                 return XHR({
                     url: baseUrl
                 });
             },
             request2 = function (value) {
+                XMLHttpRequest.addRequest({
+                    url: baseUrl
+                });
                 return XHR({
                     url: baseUrl
                 })
@@ -69,6 +87,9 @@ describe('XHRPromise and XHRActions with requests', function () {
                     });
             },
             request3 = function (value) {
+                XMLHttpRequest.addRequest({
+                    url: baseUrl
+                });
                 return XHR({
                     url: baseUrl
                 })
@@ -97,11 +118,17 @@ describe('XHRPromise and XHRActions with requests', function () {
     it('Should make 3 requests with method calling and applying async own interceptors', function (done) {
         var count = 0,
             request = function () {
+                XMLHttpRequest.addRequest({
+                    url: baseUrl
+                });
                 return XHR({
                     url: baseUrl
                 });
             },
             request2 = function (value) {
+                XMLHttpRequest.addRequest({
+                    url: baseUrl
+                });
                 return XHR({
                     url: baseUrl
                 })
@@ -116,6 +143,9 @@ describe('XHRPromise and XHRActions with requests', function () {
                     });
             },
             request3 = function (value) {
+                XMLHttpRequest.addRequest({
+                    url: baseUrl
+                });
                 return XHR({
                     url: baseUrl
                 })
@@ -148,11 +178,17 @@ describe('XHRPromise and XHRActions with requests', function () {
     it('Should make 4 requests with method calling and applying async own interceptors', function (done) {
         var count = 0,
             request = function () {
+                XMLHttpRequest.addRequest({
+                    url: baseUrl
+                });
                 return XHR({
                     url: baseUrl
                 });
             },
             request2 = function (value) {
+                XMLHttpRequest.addRequest({
+                    url: baseUrl
+                });
                 return XHR({
                     url: baseUrl
                 })
@@ -170,6 +206,9 @@ describe('XHRPromise and XHRActions with requests', function () {
                     });
             },
             request3 = function (value) {
+                XMLHttpRequest.addRequest({
+                    url: baseUrl
+                });
                 return XHR({
                     url: baseUrl
                 })
@@ -206,11 +245,17 @@ describe('XHRPromise and XHRActions with requests', function () {
                 res2,
                 res3,
                 request = function () {
+                    XMLHttpRequest.addRequest({
+                        url: baseUrl
+                    });
                     return XHR({
                         url: baseUrl
                     });
                 },
                 request2 = function (value) {
+                    XMLHttpRequest.addRequest({
+                        url: baseUrl
+                    });
                     return XHR({
                         url: baseUrl
                     })
@@ -228,6 +273,9 @@ describe('XHRPromise and XHRActions with requests', function () {
                         });
                 },
                 request3 = function (value) {
+                    XMLHttpRequest.addRequest({
+                        url: baseUrl
+                    });
                     return XHR({
                         url: baseUrl
                     })
@@ -264,5 +312,4 @@ describe('XHRPromise and XHRActions with requests', function () {
                 });
             count++;
         });
-
 });
