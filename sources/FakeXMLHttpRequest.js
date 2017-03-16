@@ -147,7 +147,9 @@
     FakeXMLHttpRequest.prototype.setUserRequestConfig = function () {
         var key = getRequestKey(this.url, this.method, this.data),
             config = SAVED_RESPONSES[key];
-        delete SAVED_RESPONSES[key];
+        if (config && !--config.countOfRequests) {
+            delete SAVED_RESPONSES[key];
+        }
         this.userConfig = config;
     };
 
@@ -185,7 +187,7 @@
         this.headers = this.userConfig && this.userConfig.responseHeaders ? this.userConfig.responseHeaders : this.headers;
     };
 
-    FakeXMLHttpRequest.addRequest = function (config, responseConfig) {
+    FakeXMLHttpRequest.addRequest = function (config, responseConfig, countOfRequests) {
         if (!config.url) {
             throw new Error('no url provided')
         }
@@ -201,7 +203,8 @@
             statusText: responseConfig.statusText,
             responseType: responseConfig.type || FakeXMLHttpRequest.defaults.responseType,
             responseHeaders: responseConfig.headers,
-            response: responseConfig.data || null
+            response: responseConfig.data || null,
+            countOfRequests: countOfRequests || 1
         };
     };
 
