@@ -222,8 +222,18 @@
 
     function getRequestKey (url, method, data) {
         method = method || FakeXMLHttpRequest.defaults.method;
-        data = data ? sortProperties(data) : '';
+        data = data ? prepareData(data) : '';
         return hex_sha1(url + method + data);
+    }
+
+    function prepareData (data) {
+        if (typeof data !== 'object') {
+            return data;
+        }
+        if (Array.isArray(data)) {
+            return JSON.stringify(data.sort());
+        }
+        return JSON.stringify(sortProperties(data));
     }
 
     function sortProperties (obj) {
