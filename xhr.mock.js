@@ -957,11 +957,19 @@
                   
                       function getRequestKey (url, method, data) {
                           method = method || FakeXMLHttpRequest.defaults.method;
-                          data = data ? prepareData(data) : '';
+                          data = (data !== undefined) && (data !== null) ? prepareData(data) : '';
                           return hex_sha1(url + method + data);
                       }
                   
                       function prepareData (data) {
+                          if (typeof data === 'string') {
+                              try {
+                                  data = JSON.parse(data);
+                              }
+                              catch (e) {
+                                  return data
+                              }
+                          }
                           if (typeof data !== 'object') {
                               return data;
                           }
