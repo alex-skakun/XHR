@@ -923,7 +923,7 @@
                       };
                   
                       FakeXMLHttpRequest.getRequestKey = getRequestKey;
-
+                  
                       FakeXMLHttpRequest.addRequest = function (config, responseConfig, countOfRequests) {
                           if (!config.url) {
                               throw new Error('no url provided')
@@ -980,7 +980,7 @@
                           }
                           return JSON.stringify(sortProperties(data));
                       }
-
+                  
                       function sortProperties (obj) {
                           var ordered = {};
                           Object.keys(obj).sort().forEach(function(key) {
@@ -1148,8 +1148,8 @@
                   }(global));
               
                   var XHR_ACTIONS = new Map();
-
-
+              
+              
                   function setAttributes (_attributes, xhr) {
                       var resultAttributes = {},
                           defaultAttributes = Object.keys(XHR.defaults.attributes),
@@ -1414,7 +1414,7 @@
               
                           XHR_ACTIONS.set(XMLHttpRequest.getRequestKey(config.url + queryParams, config.method, dataForSend),
                               result.actions);
-
+              
                           return result.actions;
                       }
                   }
@@ -1475,7 +1475,7 @@
                   XHR.getActionsObject = function (config) {
                      return XHR_ACTIONS.get(XMLHttpRequest.getRequestKey(config.url, config.method, config.data));
                   };
-
+              
                   Object.defineProperty(XHR, 'defaults', {
                       value: {
                           method: 'GET',
