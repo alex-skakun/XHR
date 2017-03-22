@@ -882,7 +882,9 @@
                       FakeXMLHttpRequest.prototype.setUserRequestConfig = function () {
                           var key = getRequestKey(this.url, this.method, this.data),
                               config = SAVED_RESPONSES[key];
-                          delete SAVED_RESPONSES[key];
+                          if (config && !--config.countOfRequests) {
+                              delete SAVED_RESPONSES[key];
+                          }
                           this.userConfig = config;
                       };
                   
@@ -921,8 +923,8 @@
                       };
                   
                       FakeXMLHttpRequest.getRequestKey = getRequestKey;
-                  
-                      FakeXMLHttpRequest.addRequest = function (config, responseConfig) {
+
+                      FakeXMLHttpRequest.addRequest = function (config, responseConfig, countOfRequests) {
                           if (!config.url) {
                               throw new Error('no url provided')
                           }
@@ -938,7 +940,8 @@
                               statusText: responseConfig.statusText,
                               responseType: responseConfig.type || FakeXMLHttpRequest.defaults.responseType,
                               responseHeaders: responseConfig.headers,
-                              response: responseConfig.data || null
+                              response: responseConfig.data || null,
+                              countOfRequests: countOfRequests || 1
                           };
                       };
                   
@@ -956,10 +959,28 @@
                   
                       function getRequestKey (url, method, data) {
                           method = method || FakeXMLHttpRequest.defaults.method;
-                          data = data ? sortProperties(data) : '';
+                          data = (data !== undefined) && (data !== null) ? prepareData(data) : '';
                           return hex_sha1(url + method + data);
                       }
                   
+                      function prepareData (data) {
+                          if (typeof data === 'string') {
+                              try {
+                                  data = JSON.parse(data);
+                              }
+                              catch (e) {
+                                  return data
+                              }
+                          }
+                          if (typeof data !== 'object') {
+                              return data;
+                          }
+                          if (Array.isArray(data)) {
+                              return JSON.stringify(data.sort());
+                          }
+                          return JSON.stringify(sortProperties(data));
+                      }
+
                       function sortProperties (obj) {
                           var ordered = {};
                           Object.keys(obj).sort().forEach(function(key) {
@@ -1127,8 +1148,8 @@
                   }(global));
               
                   var XHR_ACTIONS = new Map();
-              
-              
+
+
                   function setAttributes (_attributes, xhr) {
                       var resultAttributes = {},
                           defaultAttributes = Object.keys(XHR.defaults.attributes),
@@ -1393,7 +1414,7 @@
               
                           XHR_ACTIONS.set(XMLHttpRequest.getRequestKey(config.url + queryParams, config.method, dataForSend),
                               result.actions);
-              
+
                           return result.actions;
                       }
                   }
@@ -1454,7 +1475,7 @@
                   XHR.getActionsObject = function (config) {
                      return XHR_ACTIONS.get(XMLHttpRequest.getRequestKey(config.url, config.method, config.data));
                   };
-              
+
                   Object.defineProperty(XHR, 'defaults', {
                       value: {
                           method: 'GET',

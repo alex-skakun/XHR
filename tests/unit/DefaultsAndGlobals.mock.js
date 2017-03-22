@@ -40,7 +40,7 @@ describe('Simple Requests', function () {
                 response = data;
                 return true;
             };
-            XHR.interceptors.request = function requestMe(data) {
+            XHR.interceptors.request = function requestMe (data) {
                 request = data;
                 return true;
             };
@@ -188,6 +188,93 @@ describe('Simple Requests', function () {
                 expect(xhr.headers['my-second-header']).toBe('123');
                 done();
             });
+    });
+
+    it('Should use defined request once', function (done) {
+        XMLHttpRequest.addRequest({
+            url: baseUrl
+        });
+        XHR({
+            url: baseUrl,
+            headers: {
+                MyHeader: 'MyValue',
+                'my-second-header': '123'
+            }
+        })
+            .success(function (data, xhr) {
+                expect(xhr.headers.myheader).toBe('MyValue');
+                expect(xhr.headers['my-second-header']).toBe('123');
+                XHR({
+                    url: baseUrl
+                })
+                    .error(function (err, xhr) {
+                        expect(xhr.status).toBe(404);
+                        done();
+                    });
+            });
+    });
+
+    it('Should use defined request twice', function (done) {
+        XMLHttpRequest.addRequest({
+            url: baseUrl
+        }, {}, 2);
+        var headers = {
+            MyHeader: 'MyValue',
+            'my-second-header': '123'
+        };
+        XHR({
+            url: baseUrl,
+            headers: headers
+        })
+            .success(function (data, xhr) {
+                expect(xhr.headers.myheader).toBe('MyValue');
+                expect(xhr.headers['my-second-header']).toBe('123');
+                XHR({
+                    url: baseUrl,
+                    headers: headers
+                })
+                    .success(function (err, xhr) {
+                        expect(xhr.headers.myheader).toBe('MyValue');
+                        expect(xhr.headers['my-second-header']).toBe('123');
+                        XHR({
+                            url: baseUrl
+                        })
+                            .error(function (err, xhr) {
+                                expect(xhr.status).toBe(404);
+                                done();
+                            });
+                    });
+            });
+    });
+
+    it('Should use defined request any time', function (done) {
+        XMLHttpRequest.addRequest({
+            url: baseUrl
+        }, {}, Infinity);
+        var headers = {
+                MyHeader: 'MyValue',
+                'my-second-header': '123'
+            },
+            countOfRequests = Math.round(10 + Math.random() * 90);
+
+        function runXHR () {
+            countOfRequests--;
+            XHR({
+                url: baseUrl,
+                headers: headers
+            })
+                .success(function (data, xhr) {
+                    expect(xhr.headers.myheader).toBe('MyValue');
+                    expect(xhr.headers['my-second-header']).toBe('123');
+                    if (countOfRequests) {
+                        runXHR();
+                    } else {
+                        done();
+                    }
+                })
+        }
+
+        runXHR();
     });
 
 });

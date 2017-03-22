@@ -231,6 +231,116 @@ describe('Simple Requests', function () {
             });
     });
 
+    it('Should make request with data payload object type', function (done) {
+        XMLHttpRequest.addRequest({
+            url: baseUrl,
+            method: 'POST',
+            data: {
+                prop: 'test'
+            }
+        });
+        XHR({
+            url: baseUrl,
+            method: 'POST',
+            data: {
+                prop: 'test'
+            }
+        })
+            .success(function (response, xhr) {
+                expect(xhr.status).toBe(200);
+                done();
+            });
+    });
+
+    it('Should make request with data object stringified', function (done) {
+        var obj = {
+            test: 'request'
+        };
+        XMLHttpRequest.addRequest({
+            url: baseUrl,
+            method: 'POST',
+            data: JSON.stringify(obj)
+        });
+        XHR({
+            url: baseUrl,
+            method: 'POST',
+            data: obj
+        })
+            .success(function (response, xhr) {
+                expect(xhr.status).toBe(200);
+                done();
+            });
+    });
+
+
+    it('Should make request with data payload boolean type', function (done) {
+        XMLHttpRequest.addRequest({
+            url: baseUrl,
+            method: 'POST',
+            data: false
+        });
+        XHR({
+            url: baseUrl,
+            method: 'POST',
+            data: false
+        })
+            .success(function (response, xhr) {
+                expect(xhr.status).toBe(200);
+                done();
+            });
+    });
+
+    it('Should make request with data payload string type', function (done) {
+        XMLHttpRequest.addRequest({
+            url: baseUrl,
+            method: 'POST',
+            data: 'hey'
+        });
+        XHR({
+            url: baseUrl,
+            method: 'POST',
+            data: 'hey'
+        })
+            .success(function (response, xhr) {
+                expect(xhr.status).toBe(200);
+                done();
+            });
+    });
+
+    it('Should make request with data payload number type', function (done) {
+        XMLHttpRequest.addRequest({
+            url: baseUrl,
+            method: 'POST',
+            data: 10
+        });
+        XHR({
+            url: baseUrl,
+            method: 'POST',
+            data: 10
+        })
+            .success(function (response, xhr) {
+                expect(xhr.status).toBe(200);
+                done();
+            });
+    });
+
+    it('Should make request with data payload array not sorted', function (done) {
+        XMLHttpRequest.addRequest({
+            url: baseUrl,
+            method: 'POST',
+            data: [2, 1]
+        });
+        XHR({
+            url: baseUrl,
+            method: 'POST',
+            data: [1, 2]
+        })
+            .success(function (response, xhr) {
+                expect(xhr.status).toBe(200);
+                done();
+            });
+    });
+
     it('should return XHRActions object for specified config', function () {
         XMLHttpRequest.addRequest({
             url: baseUrl + 'image.png',
