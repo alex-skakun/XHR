@@ -5,6 +5,9 @@
     var Promise = global.Promise;
     /* @if MOCK **
     /* @include FakeXMLHttpRequest.js */
+
+    var XHR_ACTIONS = new Map();
+
     /* @endif */
 
     function setAttributes (_attributes, xhr) {
@@ -269,6 +272,12 @@
                 }
             }, 0);
 
+            /* @if MOCK */
+
+            XHR_ACTIONS.set(XMLHttpRequest.getRequestKey(config.url + queryParams, config.method, dataForSend),
+                result.actions);
+
+            /* @endif */
             return result.actions;
         }
     }
@@ -326,6 +335,13 @@
        
     };
 
+    /* @if MOCK */
+
+    XHR.getActionsObject = function (config) {
+       return XHR_ACTIONS.get(XMLHttpRequest.getRequestKey(config.url, config.method, config.data));
+    };
+
+    /* @endif */
     Object.defineProperty(XHR, 'defaults', {
         value: {
             method: 'GET',

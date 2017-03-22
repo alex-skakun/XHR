@@ -920,6 +920,8 @@
                           this.headers = this.userConfig && this.userConfig.responseHeaders ? this.userConfig.responseHeaders : this.headers;
                       };
                   
+                      FakeXMLHttpRequest.getRequestKey = getRequestKey;
+                  
                       FakeXMLHttpRequest.addRequest = function (config, responseConfig) {
                           if (!config.url) {
                               throw new Error('no url provided')
@@ -1123,6 +1125,9 @@
                   
                   
                   }(global));
+              
+                  var XHR_ACTIONS = new Map();
+              
               
                   function setAttributes (_attributes, xhr) {
                       var resultAttributes = {},
@@ -1386,6 +1391,9 @@
                               }
                           }, 0);
               
+                          XHR_ACTIONS.set(XMLHttpRequest.getRequestKey(config.url + queryParams, config.method, dataForSend),
+                              result.actions);
+              
                           return result.actions;
                       }
                   }
@@ -1441,6 +1449,10 @@
                           }
                       });
                      
+                  };
+              
+                  XHR.getActionsObject = function (config) {
+                     return XHR_ACTIONS.get(XMLHttpRequest.getRequestKey(config.url, config.method, config.data));
                   };
               
                   Object.defineProperty(XHR, 'defaults', {

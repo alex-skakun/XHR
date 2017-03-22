@@ -185,6 +185,8 @@
         this.headers = this.userConfig && this.userConfig.responseHeaders ? this.userConfig.responseHeaders : this.headers;
     };
 
+    FakeXMLHttpRequest.getRequestKey = getRequestKey;
+
     FakeXMLHttpRequest.addRequest = function (config, responseConfig) {
         if (!config.url) {
             throw new Error('no url provided')

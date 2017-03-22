@@ -231,4 +231,23 @@ describe('Simple Requests', function () {
             });
     });
 
+    it('should return XHRActions object for specified config', function () {
+        XMLHttpRequest.addRequest({
+            url: baseUrl + 'image.png',
+            data: imageBlob
+        });
+        var xhrActions = XHR({
+            url: baseUrl + 'image.png',
+            attributes: {
+                responseType: 'blob'
+            },
+            data: imageBlob
+        });
+        var result = XHR.getActionsObject({
+            url: baseUrl + 'image.png',
+            data: imageBlob
+        });
+        expect(xhrActions).toBe(result);
+    });
+
 });
