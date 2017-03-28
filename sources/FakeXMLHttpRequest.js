@@ -247,14 +247,17 @@
     }
 
     function sortProperties (obj) {
-        var ordered = {};
-        Object.keys(obj).sort().forEach(function(key) {
-            if (typeof obj[key] === 'object'){
-                obj[key] = sortProperties(obj[key]);
-            }
-            ordered[key] = obj[key];
-        });
-        return ordered;
+        if (obj) {
+            var ordered = {};
+            Object.keys(obj).sort().forEach(function(key) {
+                if (typeof obj[key] === 'object'){
+                    obj[key] = sortProperties(obj[key]);
+                }
+                ordered[key] = obj[key];
+            });
+            return ordered;
+        }
+        return obj;
     }
 
     function compareHeaders (userConfigHeaders, headers) {

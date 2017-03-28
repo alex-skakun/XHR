@@ -982,14 +982,17 @@
                       }
                   
                       function sortProperties (obj) {
-                          var ordered = {};
-                          Object.keys(obj).sort().forEach(function(key) {
-                              if (typeof obj[key] === 'object'){
-                                  obj[key] = sortProperties(obj[key]);
-                              }
-                              ordered[key] = obj[key];
-                          });
-                          return ordered;
+                          if (obj) {
+                              var ordered = {};
+                              Object.keys(obj).sort().forEach(function(key) {
+                                  if (typeof obj[key] === 'object'){
+                                      obj[key] = sortProperties(obj[key]);
+                                  }
+                                  ordered[key] = obj[key];
+                              });
+                              return ordered;
+                          }
+                          return obj;
                       }
                   
                       function compareHeaders (userConfigHeaders, headers) {
@@ -1390,6 +1393,8 @@
                               events.forEach(function (eventData) {
                                   xhr.removeEventListener(eventData.type, eventData.listener);
                               });
+                              XHR_ACTIONS.delete(XMLHttpRequest.getRequestKey(config.url + queryParams, config.method, dataForSend));
+              
                           });
               
                           // waits for opening

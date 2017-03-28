@@ -250,6 +250,11 @@
                 events.forEach(function (eventData) {
                     xhr.removeEventListener(eventData.type, eventData.listener);
                 });
+                /* @if MOCK */
+
+                XHR_ACTIONS.delete(XMLHttpRequest.getRequestKey(config.url + queryParams, config.method, dataForSend));
+
+                /* @endif */
             });
 
             // waits for opening
