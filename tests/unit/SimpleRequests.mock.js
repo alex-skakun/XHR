@@ -360,4 +360,26 @@ describe('Simple Requests', function () {
         expect(xhrActions).toBe(result);
     });
 
+    it('Should make request with data payload boolean type', function (done) {
+        var requestFinished,
+            key = XMLHttpRequest.addRequest({
+            url: baseUrl
+        }, {
+            data: 'hey'
+        });
+        XMLHttpRequest.globalEmitter.addEventListener('RequestLoaded', function  (loadedKey) {
+            if (key === loadedKey) {
+                expect(requestFinished).toBeTruthy();
+                done();
+            }
+        });
+        XHR({
+            url: baseUrl
+        })
+            .success(function (response, xhr) {
+                expect(xhr.status).toBe(200);
+                requestFinished = true;
+            });
+    });
+
 });

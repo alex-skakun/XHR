@@ -78,8 +78,11 @@
         if (this.readyState !== FakeXMLHttpRequest.UNSENT) {
             _readyState = FakeXMLHttpRequest.UNSENT;
             _aborted = true;
-            this.dispatchEvent('abort', new XMLHttpEvent({target: this, type: 'abort', length: false, loaded: 0, total: 0}));
-            this.dispatchEvent('loadend', new XMLHttpEvent({target: this, type: 'loadend', length: false, loaded: 0, total: 0}));
+            dispatchLoadEndWithEvent(this, 'abort', {
+                length: false,
+                loaded: 0,
+                total: 0
+            });
         }
     };
 
@@ -113,14 +116,20 @@
             _this.status = 404;
             _this.response = 'data not found';
             _this.readyState = FakeXMLHttpRequest.DONE;
-            _this.dispatchEvent('load', new XMLHttpEvent({target: _this, type: 'load', length: true, total: 0, loaded: 0}));
-            _this.dispatchEvent('loadend', new XMLHttpEvent({target: _this, type: 'loadend', length: true, total: 0, loaded: 0}));
+            dispatchLoadEndWithEvent(_this, 'load', {
+                length: true,
+                loaded: 0,
+                total: 0
+            });
         } else if (_this.checkHeaders()) {
             _this.resetTimeout = null;
             if (_this.timeout) {
                 _this.resetTimeout = setTimeout(function () {
-                    _this.dispatchEvent('timeout', new XMLHttpEvent({target: _this, type: 'timeout', length: false, loaded: 0, total: 0}));
-                    _this.dispatchEvent('loadend', new XMLHttpEvent({target: _this, type: 'loadend', length: true, total: 0, loaded: 0}));
+                    dispatchLoadEndWithEvent(_this, 'timeout', {
+                        length: false,
+                        loaded: 0,
+                        total: 0
+                    });
                     if (_this.resetUserTimeout) {
                         clearTimeout(_this.resetUserTimeout);
                     }
@@ -135,8 +144,11 @@
             _this.status = 400;
             _this.response = 'headers not the same';
             _this.readyState = FakeXMLHttpRequest.DONE;
-            _this.dispatchEvent('error', new XMLHttpEvent({target: _this, type: 'error', length: false, loaded: 0, total: 0}));
-            _this.dispatchEvent('loadend', new XMLHttpEvent({target: _this, type: 'loadend', length: false, loaded: 0, total: 0}));
+            dispatchLoadEndWithEvent(_this, 'error', {
+                length: false,
+                loaded: 0,
+                total: 0
+            });
         }
     };
 
@@ -145,7 +157,7 @@
     };
 
     FakeXMLHttpRequest.prototype.setUserRequestConfig = function () {
-        var key = getRequestKey(this.url, this.method, this.data),
+        var key = getRequestKey(this),
             config = SAVED_RESPONSES[key];
         if (config && !--config.countOfRequests) {
             delete SAVED_RESPONSES[key];
@@ -173,8 +185,11 @@
         if (!_aborted) {
             this.dispatchEvent('progress', new XMLHttpEvent({target: this, type: 'progress', length: true, total: total, loaded: loaded}));
             this.readyState = FakeXMLHttpRequest.DONE;
-            this.dispatchEvent('load', new XMLHttpEvent({target: this, type: 'load', length: true, total: total, loaded: loaded}));
-            this.dispatchEvent('loadend', new XMLHttpEvent({target: this, type: 'loadend', length: true, total: total, loaded: loaded}));
+            dispatchLoadEndWithEvent(this, 'load', {
+                length: true,
+                total: total,
+                loaded: loaded
+            });
         }
     };
 
@@ -194,7 +209,7 @@
             throw new Error('no url provided')
         }
         responseConfig = responseConfig || {};
-        var key = getRequestKey(config.url, config.method, config.data);
+        var key = getRequestKey(config);
         SAVED_RESPONSES[key] = {
             url: config.url,
             method: config.method || FakeXMLHttpRequest.defaults.method,
@@ -208,6 +223,7 @@
             response: responseConfig.data || null,
             countOfRequests: countOfRequests || 1
         };
+        return key;
     };
 
     Object.defineProperty(FakeXMLHttpRequest, 'defaults', {
@@ -222,7 +238,10 @@
         writable: false
     });
 
-    function getRequestKey (url, method, data) {
+    function getRequestKey (context) {
+        var url = context.url,
+            method = context.method,
+            data = context.data;
         method = method || FakeXMLHttpRequest.defaults.method;
         data = (data !== undefined) && (data !== null) ? prepareData(data) : '';
         return hex_sha1(url + method + data);
@@ -270,11 +289,31 @@
         return allHeadersProvided;
     }
 
+    function dispatchLoadEndWithEvent (context, event, options) {
+        context.dispatchEvent(event, new XMLHttpEvent({
+            target: context,
+            type: event,
+            length: options.length,
+            total: options.total,
+            loaded: options.loaded
+        }));
+        context.dispatchEvent('loadend', new XMLHttpEvent({
+            target: context,
+            type: 'loadend',
+            length: options.length,
+            total: options.total,
+            loaded: options.loaded
+        }));
+        FakeXMLHttpRequest.globalEmitter.dispatchEvent('RequestLoaded', getRequestKey(context));
+    }
+
     FakeXMLHttpRequest.UNSENT = XMLHttpRequest.UNSENT;
     FakeXMLHttpRequest.OPENED = XMLHttpRequest.OPENED;
     FakeXMLHttpRequest.HEADERS_RECEIVED = XMLHttpRequest.HEADERS_RECEIVED;
     FakeXMLHttpRequest.LOADING = XMLHttpRequest.LOADING;
     FakeXMLHttpRequest.DONE = XMLHttpRequest.DONE;
+
+    FakeXMLHttpRequest.globalEmitter = new EventTargetExtendable();
 
     var originalXMLHttpRequest = XMLHttpRequest;
     global.XMLHttpRequest = FakeXMLHttpRequest;
