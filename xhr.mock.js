@@ -1004,7 +1004,7 @@
                           if (obj) {
                               var ordered = {};
                               Object.keys(obj).sort().forEach(function(key) {
-                                  if (typeof obj[key] === 'object'){
+                                  if (typeof obj[key] === 'object' && obj[key] !== null){
                                       obj[key] = sortProperties(obj[key]);
                                   }
                                   ordered[key] = obj[key];
@@ -1039,7 +1039,9 @@
                               total: options.total,
                               loaded: options.loaded
                           }));
-                          FakeXMLHttpRequest.globalEmitter.dispatchEvent('RequestLoaded', getRequestKey(context));
+                          setTimeout(function () {
+                              FakeXMLHttpRequest.globalEmitter.dispatchEvent('RequestLoaded', getRequestKey(context));
+                          }, 0);
                       }
                   
                       FakeXMLHttpRequest.UNSENT = XMLHttpRequest.UNSENT;
