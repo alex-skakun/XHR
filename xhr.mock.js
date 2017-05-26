@@ -955,7 +955,7 @@
                               statusText: responseConfig.statusText,
                               responseType: responseConfig.type || FakeXMLHttpRequest.defaults.responseType,
                               responseHeaders: responseConfig.headers,
-                              response: responseConfig.data || null,
+                              response: responseConfig.data !== undefined ? responseConfig.data :  null,
                               countOfRequests: countOfRequests || 1
                           };
                           return key;

@@ -177,7 +177,7 @@ describe('Simple Requests', function () {
 
     it('Should execute error after network error', function (done) {
         XMLHttpRequest.addRequest({
-            url:baseUrl + 'networkError'
+            url: baseUrl + 'networkError'
         }, {
             status: 404,
             type: 'json',
@@ -328,12 +328,18 @@ describe('Simple Requests', function () {
         XMLHttpRequest.addRequest({
             url: baseUrl,
             method: 'POST',
-            data: [2, 1]
+            data: [
+                2,
+                1
+            ]
         });
         XHR({
             url: baseUrl,
             method: 'POST',
-            data: [1, 2]
+            data: [
+                1,
+                2
+            ]
         })
             .success(function (response, xhr) {
                 expect(xhr.status).toBe(200);
@@ -360,14 +366,14 @@ describe('Simple Requests', function () {
         expect(xhrActions).toBe(result);
     });
 
-    it('Should make request with data payload boolean type', function (done) {
+    it('Should make request with data payload', function (done) {
         var requestFinished,
             key = XMLHttpRequest.addRequest({
-            url: baseUrl
-        }, {
-            data: 'hey'
-        });
-        XMLHttpRequest.globalEmitter.addEventListener('RequestLoaded', function  (loadedKey) {
+                url: baseUrl
+            }, {
+                data: 'hey'
+            });
+        XMLHttpRequest.globalEmitter.addEventListener('RequestLoaded', function (loadedKey) {
             if (key === loadedKey) {
                 expect(requestFinished).toBeTruthy();
                 done();
@@ -379,6 +385,23 @@ describe('Simple Requests', function () {
             .success(function (response, xhr) {
                 expect(xhr.status).toBe(200);
                 requestFinished = true;
+            });
+    });
+
+    it('Should make request with response data false', function (done) {
+        var responseValue = false;
+        XMLHttpRequest.addRequest({
+            url: baseUrl
+        }, {
+            data: responseValue
+        });
+        XHR({
+            url: baseUrl
+        })
+            .success(function (response, xhr) {
+                expect(xhr.status).toBe(200);
+                expect(response).toBe(responseValue);
+                done();
             });
     });
 
