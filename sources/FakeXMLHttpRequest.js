@@ -243,7 +243,7 @@
     function getRequestKey (context) {
         var url = context.url,
             method = context.method,
-            data = context.data;
+            data = context.data === undefined ? null : context.data;
         method = method || FakeXMLHttpRequest.defaults.method;
         data = prepareData(data);
         return hex_sha1(url + method + data);
