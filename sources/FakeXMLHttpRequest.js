@@ -204,6 +204,8 @@
 
     FakeXMLHttpRequest.getRequestKey = getRequestKey;
 
+    FakeXMLHttpRequest.prepareData = prepareData;
+
     FakeXMLHttpRequest.addRequest = function (config, responseConfig, countOfRequests) {
         if (!config.url) {
             throw new Error('no url provided')
@@ -243,7 +245,7 @@
             method = context.method,
             data = context.data;
         method = method || FakeXMLHttpRequest.defaults.method;
-        data = (data !== undefined) && (data !== null) ? prepareData(data) : '';
+        data = prepareData(data);
         return hex_sha1(url + method + data);
     }
 
@@ -256,24 +258,35 @@
                 return data
             }
         }
-        if (typeof data !== 'object') {
+        if (!data || typeof data !== 'object') {
             return data;
-        }
-        if (Array.isArray(data)) {
-            return JSON.stringify(data.sort());
         }
         return JSON.stringify(sortProperties(data));
     }
 
     function sortProperties (obj) {
         if (obj) {
-            var ordered = {};
-            Object.keys(obj).sort().forEach(function(key) {
-                if (typeof obj[key] === 'object' && obj[key] !== null){
-                    obj[key] = sortProperties(obj[key]);
-                }
-                ordered[key] = obj[key];
-            });
+            var ordered;
+            if (Array.isArray(obj)) {
+                ordered = [];
+                obj.sort();
+                obj.forEach(function (item) {
+                    if (typeof item === 'object' && item !== null){
+                        ordered.push(sortProperties(item));
+                    } else {
+                        ordered.push(item);
+                    }
+                });
+            } else {
+                ordered = {};
+                Object.keys(obj).sort().forEach(function(key) {
+                    if (typeof obj[key] === 'object' && obj[key] !== null){
+                        ordered[key] = sortProperties(obj[key]);
+                    } else {
+                        ordered[key] = obj[key];
+                    }
+                });
+            }
             return ordered;
         }
         return obj;

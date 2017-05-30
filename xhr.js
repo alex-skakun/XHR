@@ -788,7 +788,8 @@
                       if (data !== undefined && data !== null) {
                           var d = data;
                           if (d instanceof (global.ArrayBufferView || global.ArrayBuffer) || d instanceof global.Blob ||
-                              (!XHR.workerMode ? d instanceof global.Document : false) || (!XHR.workerMode ? d instanceof global.FormData : false)) {
+                              (!XHR.workerMode ? d instanceof global.Document : false) ||
+                              (!XHR.workerMode ? d instanceof global.FormData : false)) {
                               dataForSend = d;
                           } else {
                               if (typeof d === 'object' && d) {
@@ -839,7 +840,7 @@
                           }
                       };
                   }
-                  
+              
                   function autoParseResponseText (xhr) {
                       var response;
                       try {
@@ -849,13 +850,13 @@
                       }
                       return response;
                   }
-                  
+              
                   function makeNextRequestFromConfigObject (configObject, result, xhr) {
                       try {
                           XHR(configObject, result);
                       } catch (e) {
                           result.applyCallback('error', e, xhr);
-                      } 
+                      }
                   }
               
                   function loadEndListener (e, result, xhr) {
@@ -1001,9 +1002,10 @@
                   }
               
                   function guid () {
-                      function s4() {
+                      function s4 () {
                           return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
                       }
+              
                       return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
                   }
               
@@ -1050,7 +1052,7 @@
                               reject(new Error('Worker can be enabled only in main thread.'));
                           }
                       });
-                     
+              
                   };
               
                   Object.defineProperty(XHR, 'defaults', {

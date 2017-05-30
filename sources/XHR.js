@@ -4,7 +4,7 @@
 
     var Promise = global.Promise;
     /* @if MOCK **
-    /* @include FakeXMLHttpRequest.js */
+     /* @include FakeXMLHttpRequest.js */
 
     var XHR_ACTIONS = new Map();
 
@@ -64,7 +64,8 @@
         if (data !== undefined && data !== null) {
             var d = data;
             if (d instanceof (global.ArrayBufferView || global.ArrayBuffer) || d instanceof global.Blob ||
-                (!XHR.workerMode ? d instanceof global.Document : false) || (!XHR.workerMode ? d instanceof global.FormData : false)) {
+                (!XHR.workerMode ? d instanceof global.Document : false) ||
+                (!XHR.workerMode ? d instanceof global.FormData : false)) {
                 dataForSend = d;
             } else {
                 if (typeof d === 'object' && d) {
@@ -115,7 +116,7 @@
             }
         };
     }
-    
+
     function autoParseResponseText (xhr) {
         var response;
         try {
@@ -125,13 +126,13 @@
         }
         return response;
     }
-    
+
     function makeNextRequestFromConfigObject (configObject, result, xhr) {
         try {
             XHR(configObject, result);
         } catch (e) {
             result.applyCallback('error', e, xhr);
-        } 
+        }
     }
 
     function loadEndListener (e, result, xhr) {
@@ -252,7 +253,11 @@
                 });
                 /* @if MOCK */
 
-                XHR_ACTIONS.delete(XMLHttpRequest.getRequestKey(config.url + queryParams, config.method, dataForSend));
+                XHR_ACTIONS.delete(XMLHttpRequest.getRequestKey({
+                    url: config.url + queryParams,
+                    method: config.method,
+                    data: dataForSend
+                }));
 
                 /* @endif */
             });
@@ -279,7 +284,11 @@
 
             /* @if MOCK */
 
-            XHR_ACTIONS.set(XMLHttpRequest.getRequestKey(config.url + queryParams, config.method, dataForSend),
+            XHR_ACTIONS.set(XMLHttpRequest.getRequestKey({
+                    url: config.url + queryParams,
+                    method: config.method,
+                    data: dataForSend
+                }),
                 result.actions);
 
             /* @endif */
@@ -288,9 +297,10 @@
     }
 
     function guid () {
-        function s4() {
+        function s4 () {
             return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
         }
+
         return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
     }
 
@@ -337,13 +347,13 @@
                 reject(new Error('Worker can be enabled only in main thread.'));
             }
         });
-       
+
     };
 
     /* @if MOCK */
 
     XHR.getActionsObject = function (config) {
-       return XHR_ACTIONS.get(XMLHttpRequest.getRequestKey(config.url, config.method, config.data));
+        return XHR_ACTIONS.get(XMLHttpRequest.getRequestKey(config));
     };
 
     /* @endif */

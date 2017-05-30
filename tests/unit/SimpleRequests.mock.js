@@ -405,4 +405,130 @@ describe('Simple Requests', function () {
             });
     });
 
+    describe('should test method prepareData', function () {
+        var data,
+            expectedData;
+        it('should test if value true', function () {
+            data = true;
+            expectedData = true;
+            expect(XMLHttpRequest.prepareData(data)).toBe(expectedData);
+            expect(data).toBe(data);
+        });
+
+        it('should test if value false', function () {
+            data = false;
+            expectedData = false;
+            expect(XMLHttpRequest.prepareData(data)).toBe(expectedData);
+            expect(data).toBe(data);
+        });
+
+        it('should test if value number', function () {
+            data = 123;
+            expectedData = 123;
+            expect(XMLHttpRequest.prepareData(data)).toBe(expectedData);
+            expect(data).toBe(data);
+        });
+
+        it('should test if value string', function () {
+            data = 'my string';
+            expectedData = 'my string';
+            expect(XMLHttpRequest.prepareData(data)).toBe(expectedData);
+            expect(data).toBe(data);
+        });
+
+        it('should test if value null', function () {
+            data = null;
+            expectedData = null;
+            expect(XMLHttpRequest.prepareData(data)).toBe(expectedData);
+            expect(data).toBe(data);
+        });
+
+        it('should test if value undefined', function () {
+            data = undefined;
+            expectedData = undefined;
+            expect(XMLHttpRequest.prepareData(data)).toBe(expectedData);
+            expect(data).toBe(data);
+        });
+
+        it('should test if value an arr without objects', function () {
+            data = [
+                1,
+                2,
+                3
+            ];
+            expectedData = "[1,2,3]";
+            expect(XMLHttpRequest.prepareData(data)).toBe(expectedData);
+            expect(data).toBe(data);
+        });
+
+        it('should test if value an arr with objects', function () {
+            data = [
+                {
+                    b: '123',
+                    a: 'aa'
+                },
+                3,
+                2
+            ];
+            expectedData = '[2,3,{"a":"aa","b":"123"}]';
+            expect(XMLHttpRequest.prepareData(data)).toBe(expectedData);
+            expect(data).toBe(data);
+        });
+
+        it('should test if an obj without objects', function () {
+            data = {
+                b: '123',
+                a: 'aa'
+            };
+            expectedData = '{"a":"aa","b":"123"}';
+            expect(XMLHttpRequest.prepareData(data)).toBe(expectedData);
+            expect(data).toBe(data);
+        });
+
+        it('should test if an obj with object and array', function () {
+            data = {
+                notSorted: [
+                    [
+                        {value: 'wer'},
+                        'rwe'
+                    ],
+                    3,
+                    2,
+                    1
+                ],
+                sorted: [
+                    1,
+                    {a: 123}
+                ],
+                obj: {
+                    arr: [
+                        'sdf',
+                        23
+                    ],
+                    aaabj: {
+                        complete: '123'
+                    }
+                },
+                b: '123',
+                a: 'aa'
+            };
+            expectedData = '{"a":"aa","b":"123","notSorted":[1,2,3,[{"value":"wer"},"rwe"]],"obj":{"aaabj":{"complete":"123"},"arr":[23,"sdf"]},"sorted":[1,{"a":123}]}';
+            expect(XMLHttpRequest.prepareData(data)).toBe(expectedData);
+            expect(data).toBe(data);
+        });
+    });
+    it('should test that data not changed when getRequestKey called', function () {
+        var context = {
+            url: 'new one',
+            method: 'GET',
+            data: {
+                obj: {
+                    value: []
+                }
+            }
+        };
+        XMLHttpRequest.getRequestKey(context);
+        expect(typeof context.data).toBe('object')
+    })
+
 });
