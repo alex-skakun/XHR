@@ -318,7 +318,7 @@
             loaded: options.loaded
         }));
         setTimeout(function () {
-            FakeXMLHttpRequest.globalEmitter.dispatchEvent('RequestLoaded', getRequestKey(context));
+            FakeXMLHttpRequest.globalEmitter.dispatchEvent('RequestLoaded', getRequestKey(context), context.response);
         }, 0);
     }
 

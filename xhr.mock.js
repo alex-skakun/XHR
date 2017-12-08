@@ -978,7 +978,7 @@
                        function getRequestKey (context) {
                            var url = context.url,
                                method = context.method,
-                               data = context.data;
+                               data = context.data === undefined ? null : context.data;
                            method = method || FakeXMLHttpRequest.defaults.method;
                            data = prepareData(data);
                            return hex_sha1(url + method + data);
@@ -1053,7 +1053,7 @@
                                loaded: options.loaded
                            }));
                            setTimeout(function () {
-                               FakeXMLHttpRequest.globalEmitter.dispatchEvent('RequestLoaded', getRequestKey(context));
+                               FakeXMLHttpRequest.globalEmitter.dispatchEvent('RequestLoaded', getRequestKey(context), context.response);
                            }, 0);
                        }
                    
